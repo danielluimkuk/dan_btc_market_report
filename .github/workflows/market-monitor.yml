@@ -1,0 +1,47 @@
+name: Daily Bitcoin Market Monitor
+
+on:
+  schedule:
+    - cron: '21 9 * * *'  # 9:21 AM UTC daily
+  workflow_dispatch:     # Manual trigger
+
+jobs:
+  market-analysis:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout dan_btc_market_report
+      uses: actions/checkout@v4
+    
+    - name: Setup Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Setup Chrome
+      uses: browser-actions/setup-chrome@v1
+      with:
+        chrome-version: stable
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run Market Monitor
+      env:
+        POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+        FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        EMAIL_USER: ${{ secrets.EMAIL_USER }}
+        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+        RECIPIENT_EMAILS: ${{ secrets.RECIPIENT_EMAILS }}
+        AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+        AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
+        IMGUR_CLIENT_ID: ${{ secrets.IMGUR_CLIENT_ID }}
+      run: |
+        cd src
+        python github_market_monitor.py
+    
+    - name: Run Tests
+      run: |
+        python -m pytest tests/ -v
