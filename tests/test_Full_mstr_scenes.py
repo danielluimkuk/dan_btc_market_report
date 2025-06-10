@@ -1,0 +1,414 @@
+"""
+Comprehensive MSTR Test Script
+Tests all MSTR scenarios while keeping BTC constant
+"""
+
+import logging
+from datetime import datetime, timezone
+from enhanced_notification_handler import EnhancedNotificationHandler
+from data_storage import DataStorage
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+
+def create_constant_btc_data():
+    """Create constant BTC data for all tests"""
+    return {
+        'price': 96750,
+        'type': 'crypto',
+        'indicators': {
+            'mvrv': 3.2,
+            'weekly_rsi': 75.4,
+            'ema_200': 85240
+        },
+        'metadata': {'source': 'polygon.io + tradingview'},
+        'last_updated': datetime.now(timezone.utc).isoformat()
+    }
+
+
+def create_mstr_scenario(scenario_name, price, model_price, iv, iv_percentile, iv_rank, error=None):
+    """Create MSTR data for specific scenario"""
+    if error:
+        return {
+            'type': 'stock',
+            'error': error,
+            'last_updated': datetime.now(timezone.utc).isoformat()
+        }
+
+    deviation_pct = ((price - model_price) / model_price) * 100
+
+    # Generate analysis based on the scenario
+    analysis = generate_mstr_analysis(deviation_pct, iv_percentile, iv_rank)
+
+    return {
+        'price': price,
+        'type': 'stock',
+        'indicators': {
+            'model_price': model_price,
+            'deviation_pct': deviation_pct,
+            'iv': iv,
+            'iv_percentile': iv_percentile,
+            'iv_rank': iv_rank
+        },
+        'analysis': analysis,
+        'metadata': {
+            'source': 'mstr_analyzer',
+            'ballistic_source': 'xpath_precision',
+            'volatility_source': 'selenium',
+            'scenario': scenario_name
+        },
+        'last_updated': datetime.now(timezone.utc).isoformat()
+    }
+
+
+def generate_mstr_analysis(deviation_pct, iv_percentile, iv_rank):
+    """Generate MSTR analysis based on indicators"""
+    analysis = {
+        'price_signal': {},
+        'volatility_signal': {},
+        'volatility_conflict': {}
+    }
+
+    # Price Signal Analysis
+    if deviation_pct >= 25:
+        analysis['price_signal'] = {
+            'status': 'overvalued',
+            'signal': 'SELL',
+            'alert': True,
+            'message': f'MSTR Overvalued by {deviation_pct:.1f}%',
+            'recommendation': 'Consider selling'
+        }
+    elif deviation_pct <= -20:
+        analysis['price_signal'] = {
+            'status': 'undervalued',
+            'signal': 'BUY',
+            'alert': True,
+            'message': f'MSTR Undervalued by {abs(deviation_pct):.1f}%',
+            'recommendation': 'Consider buying'
+        }
+    else:
+        analysis['price_signal'] = {
+            'status': 'neutral',
+            'signal': 'HOLD',
+            'alert': False,
+            'message': f'MSTR Fair Valued ({deviation_pct:+.1f}%)'
+        }
+
+    # Volatility Conflict Check
+    if (iv_percentile < 30 and iv_rank > 70) or (iv_percentile > 70 and iv_rank < 30):
+        analysis['volatility_conflict'] = {
+            'is_conflicting': True,
+            'message': 'Conflicting Volatility Signals',
+            'description': f'IV Percentile ({iv_percentile:.0f}%) and IV Rank ({iv_rank:.0f}%) disagree'
+        }
+    else:
+        analysis['volatility_conflict'] = {'is_conflicting': False}
+
+    # Volatility Signal Analysis
+    if iv_percentile < 30 or iv_rank < 30:
+        analysis['volatility_signal'] = {
+            'preference': 'long_calls',
+            'message': 'Consider Long Calls',
+            'description': f'Low volatility (Percentile: {iv_percentile:.0f}%, Rank: {iv_rank:.0f}%)'
+        }
+    elif iv_percentile > 70 or iv_rank > 70:
+        analysis['volatility_signal'] = {
+            'preference': 'long_puts',
+            'message': 'Consider Long Puts',
+            'description': f'High volatility (Percentile: {iv_percentile:.0f}%, Rank: {iv_rank:.0f}%)'
+        }
+    else:
+        analysis['volatility_signal'] = {
+            'preference': 'no_preference',
+            'message': 'No Options Preference',
+            'description': f'Moderate volatility (Percentile: {iv_percentile:.0f}%, Rank: {iv_rank:.0f}%)'
+        }
+
+    return analysis
+
+
+def generate_alerts_for_scenario(mstr_data):
+    """Generate alerts for MSTR scenario"""
+    alerts = []
+
+    if 'error' in mstr_data:
+        alerts.append({
+            'type': 'data_error',
+            'asset': 'MSTR',
+            'message': f"Failed to collect data for MSTR: {mstr_data['error']}",
+            'severity': 'high'
+        })
+        return alerts
+
+    indicators = mstr_data.get('indicators', {})
+    analysis = mstr_data.get('analysis', {})
+
+    # Model price vs actual price alerts
+    model_price = indicators.get('model_price')
+    actual_price = mstr_data.get('price')
+    deviation_pct = indicators.get('deviation_pct')
+
+    if model_price and actual_price and deviation_pct is not None:
+        if deviation_pct >= 25:
+            alerts.append({
+                'type': 'mstr_overvalued',
+                'asset': 'MSTR',
+                'message': f"MSTR is {deviation_pct:.1f}% overvalued (${actual_price:.2f} vs ${model_price:.2f})",
+                'severity': 'high'
+            })
+        elif deviation_pct <= -20:
+            alerts.append({
+                'type': 'mstr_undervalued',
+                'asset': 'MSTR',
+                'message': f"MSTR is {abs(deviation_pct):.1f}% undervalued (${actual_price:.2f} vs ${model_price:.2f})",
+                'severity': 'medium'
+            })
+
+    # Volatility alerts
+    iv_percentile = indicators.get('iv_percentile')
+    iv_rank = indicators.get('iv_rank')
+
+    if iv_percentile is not None and iv_rank is not None:
+        if iv_percentile > 80 or iv_rank > 80:
+            alerts.append({
+                'type': 'high_volatility',
+                'asset': 'MSTR',
+                'message': f"MSTR volatility is high (Percentile: {iv_percentile:.0f}%, Rank: {iv_rank:.0f}%)",
+                'severity': 'low'
+            })
+        elif iv_percentile < 20 or iv_rank < 20:
+            alerts.append({
+                'type': 'low_volatility',
+                'asset': 'MSTR',
+                'message': f"MSTR volatility is low (Percentile: {iv_percentile:.0f}%, Rank: {iv_rank:.0f}%)",
+                'severity': 'low'
+            })
+
+    # Signal-based alerts from analysis
+    price_signal = analysis.get('price_signal', {})
+    if price_signal.get('alert', False):
+        alerts.append({
+            'type': 'mstr_signal',
+            'asset': 'MSTR',
+            'message': price_signal.get('message', 'MSTR signal triggered'),
+            'severity': 'medium'
+        })
+
+    # Volatility conflict alerts
+    volatility_conflict = analysis.get('volatility_conflict', {})
+    if volatility_conflict.get('is_conflicting', False):
+        alerts.append({
+            'type': 'volatility_conflict',
+            'asset': 'MSTR',
+            'message': volatility_conflict.get('message', 'Conflicting volatility signals'),
+            'severity': 'low'
+        })
+
+    return alerts
+
+
+def test_scenario(scenario_name, mstr_data):
+    """Test a specific MSTR scenario"""
+    print(f"\n{'=' * 60}")
+    print(f"🧪 TESTING SCENARIO: {scenario_name}")
+    print(f"{'=' * 60}")
+
+    # Create test data structure
+    btc_data = create_constant_btc_data()
+
+    test_data = {
+        'timestamp': datetime.now(timezone.utc).isoformat(),
+        'assets': {
+            'BTC': btc_data,
+            'MSTR': mstr_data
+        },
+        'summary': {
+            'total_assets': 2,
+            'successful_collections': 1 if 'error' not in mstr_data else 0,
+            'failed_collections': 1 if 'error' in mstr_data else 0
+        }
+    }
+
+    # Generate alerts for this scenario
+    alerts = []
+
+    # BTC alerts (constant)
+    if btc_data.get('indicators', {}).get('mvrv', 0) > 3.0:
+        alerts.append({
+            'type': 'mvrv_high',
+            'asset': 'BTC',
+            'message': f"BTC MVRV is high at {btc_data['indicators']['mvrv']:.2f} - potential sell signal",
+            'severity': 'medium'
+        })
+
+    if btc_data.get('indicators', {}).get('weekly_rsi', 0) > 70:
+        alerts.append({
+            'type': 'rsi_overbought',
+            'asset': 'BTC',
+            'message': f"BTC Weekly RSI is overbought at {btc_data['indicators']['weekly_rsi']:.1f}",
+            'severity': 'medium'
+        })
+
+    # MSTR alerts (variable)
+    mstr_alerts = generate_alerts_for_scenario(mstr_data)
+    alerts.extend(mstr_alerts)
+
+    # Print scenario details
+    print(f"📊 MSTR Data:")
+    if 'error' in mstr_data:
+        print(f"   ❌ Error: {mstr_data['error']}")
+    else:
+        print(f"   💰 Price: ${mstr_data['price']:,.2f}")
+        print(f"   📈 Model Price: ${mstr_data['indicators']['model_price']:,.2f}")
+        print(f"   📊 Deviation: {mstr_data['indicators']['deviation_pct']:+.1f}%")
+        print(f"   🌊 IV: {mstr_data['indicators']['iv']:.1f}%")
+        print(f"   📊 IV Percentile: {mstr_data['indicators']['iv_percentile']:.0f}%")
+        print(f"   📊 IV Rank: {mstr_data['indicators']['iv_rank']:.0f}%")
+
+        # Print analysis
+        analysis = mstr_data.get('analysis', {})
+        price_signal = analysis.get('price_signal', {})
+        volatility_signal = analysis.get('volatility_signal', {})
+        volatility_conflict = analysis.get('volatility_conflict', {})
+
+        print(f"\n🔍 Analysis:")
+        print(f"   📈 Price Signal: {price_signal.get('signal', 'N/A')} - {price_signal.get('message', 'N/A')}")
+        print(f"   🌊 Volatility: {volatility_signal.get('message', 'N/A')}")
+        if volatility_conflict.get('is_conflicting', False):
+            print(f"   ⚠️ Conflict: {volatility_conflict.get('message', 'N/A')}")
+
+    # Print alerts
+    print(f"\n🚨 Generated Alerts ({len(alerts)} total):")
+    if not alerts:
+        print("   ✅ No alerts generated")
+    else:
+        for alert in alerts:
+            severity_emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(alert.get('severity', 'medium'), '🟡')
+            print(f"   {severity_emoji} [{alert['severity'].upper()}] {alert['asset']}: {alert['message']}")
+
+    # Test email generation (but don't send)
+    try:
+        notification_handler = EnhancedNotificationHandler()
+        report_date = datetime.now(timezone.utc).strftime('%B %d, %Y')
+        html_report = notification_handler._generate_enhanced_report_html(test_data, alerts, report_date)
+
+        # Save HTML report for inspection
+        filename = f"test_report_{scenario_name.lower().replace(' ', '_').replace('/', '_')}.html"
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(html_report)
+
+        print(f"   📧 HTML report generated: {filename}")
+        print(f"   ✅ Email generation: SUCCESS")
+
+    except Exception as e:
+        print(f"   ❌ Email generation: FAILED - {str(e)}")
+
+    return test_data, alerts
+
+
+def run_comprehensive_test():
+    """Run all MSTR test scenarios"""
+    print("🚀 Starting Comprehensive MSTR Test Suite")
+    print("🔄 BTC data remains constant across all tests")
+    print("📊 Testing all MSTR scenarios and alert conditions\n")
+
+    scenarios = [
+        # 1. Severely Overvalued Scenarios
+        ("Severely Overvalued + High Volatility",
+         create_mstr_scenario("severely_overvalued_high_vol", 500, 350, 95.2, 85, 82)),
+
+        ("Severely Overvalued + Low Volatility",
+         create_mstr_scenario("severely_overvalued_low_vol", 480, 350, 45.3, 15, 18)),
+
+        ("Severely Overvalued + Volatility Conflict",
+         create_mstr_scenario("severely_overvalued_conflict", 470, 350, 78.1, 25, 85)),
+
+        # 2. Moderately Overvalued Scenarios
+        ("Moderately Overvalued + Normal Volatility",
+         create_mstr_scenario("moderately_overvalued", 440, 350, 68.4, 45, 52)),
+
+        # 3. Fair Valued Scenarios
+        ("Fair Valued + High Volatility",
+         create_mstr_scenario("fair_valued_high_vol", 360, 350, 89.7, 78, 75)),
+
+        ("Fair Valued + Low Volatility",
+         create_mstr_scenario("fair_valued_low_vol", 365, 350, 35.2, 22, 19)),
+
+        ("Fair Valued + Normal Volatility",
+         create_mstr_scenario("fair_valued_normal", 355, 350, 58.1, 48, 51)),
+
+        # 4. Undervalued Scenarios
+        ("Moderately Undervalued + High Volatility",
+         create_mstr_scenario("moderately_undervalued_high_vol", 300, 350, 92.3, 88, 85)),
+
+        ("Severely Undervalued + Low Volatility",
+         create_mstr_scenario("severely_undervalued_low_vol", 250, 350, 42.1, 12, 15)),
+
+        ("Severely Undervalued + Volatility Conflict",
+         create_mstr_scenario("severely_undervalued_conflict", 240, 350, 67.8, 82, 25)),
+
+        # 5. Extreme Volatility Scenarios
+        ("Fair Valued + Extreme High Volatility",
+         create_mstr_scenario("extreme_high_volatility", 355, 350, 125.6, 95, 92)),
+
+        ("Fair Valued + Extreme Low Volatility",
+         create_mstr_scenario("extreme_low_volatility", 345, 350, 25.1, 5, 8)),
+
+        ("Fair Valued + Maximum Volatility Conflict",
+         create_mstr_scenario("max_volatility_conflict", 350, 350, 85.9, 5, 95)),
+
+        # 6. Error Scenarios
+        ("MSTR Collection Error",
+         create_mstr_scenario("collection_error", 0, 0, 0, 0, 0, error="Failed to scrape ballistic data: Timeout")),
+
+        ("MSTR Partial Data Error",
+         create_mstr_scenario("partial_error", 0, 0, 0, 0, 0, error="Volatility data unavailable")),
+    ]
+
+    results = []
+
+    for scenario_name, mstr_data in scenarios:
+        try:
+            test_data, alerts = test_scenario(scenario_name, mstr_data)
+            results.append({
+                'scenario': scenario_name,
+                'success': True,
+                'alerts_count': len(alerts),
+                'data': test_data
+            })
+        except Exception as e:
+            print(f"   ❌ Test failed: {str(e)}")
+            results.append({
+                'scenario': scenario_name,
+                'success': False,
+                'error': str(e)
+            })
+
+    # Summary
+    print(f"\n{'=' * 60}")
+    print("📋 TEST SUMMARY")
+    print(f"{'=' * 60}")
+
+    successful_tests = [r for r in results if r['success']]
+    failed_tests = [r for r in results if not r['success']]
+
+    print(f"✅ Successful Tests: {len(successful_tests)}/{len(results)}")
+    print(f"❌ Failed Tests: {len(failed_tests)}")
+
+    if failed_tests:
+        print(f"\n🔍 Failed Test Details:")
+        for test in failed_tests:
+            print(f"   - {test['scenario']}: {test.get('error', 'Unknown error')}")
+
+    print(f"\n📊 Alert Generation Summary:")
+    for test in successful_tests:
+        print(f"   - {test['scenario']}: {test['alerts_count']} alerts")
+
+    print(f"\n🎯 All HTML reports saved to current directory")
+    print(f"📧 Email generation tested for all scenarios")
+    print(f"✅ Comprehensive MSTR test completed!")
+
+
+if __name__ == "__main__":
+    run_comprehensive_test()

@@ -1,0 +1,50 @@
+2025-06-09 21:20:38,442 - INFO - Polygon API connection test successful
+2025-06-09 21:20:38,642 - INFO - CoinGecko connection test successful - BTC: $108,627.00
+2025-06-09 21:20:38,642 - INFO - Found 8 emails in RECIPIENT_EMAILS
+2025-06-09 21:20:38,643 - INFO - Client-Request-ID=354d6ba1-456f-11f0-92ff-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:20:38,643 - ERROR - Error creating table assetdata: Incorrect padding
+2025-06-09 21:20:38,644 - INFO - Client-Request-ID=354d9383-456f-11f0-a8dd-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:20:38,646 - ERROR - Error creating table alerthistory: Incorrect padding
+2025-06-09 21:20:38,647 - INFO - Client-Request-ID=354ddd7b-456f-11f0-b1ba-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:20:38,647 - ERROR - Error creating table systemhealth: Incorrect padding
+2025-06-09 21:20:38,647 - INFO - Client-Request-ID=354e06a8-456f-11f0-93f3-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:20:38,647 - ERROR - Error creating table monetarydata: Incorrect padding
+2025-06-09 21:20:38,649 - INFO - Email configured for 8 recipients
+2025-06-09 21:20:38,796 - INFO - Client-Request-ID=3564aa25-456f-11f0-8988-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:20:38,796 - ERROR - Error creating table assetdata: Incorrect padding
+2025-06-09 21:20:38,796 - INFO - Client-Request-ID=3564aa26-456f-11f0-8297-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:20:38,796 - ERROR - Error creating table alerthistory: Incorrect padding
+2025-06-09 21:20:38,796 - INFO - Client-Request-ID=3564aa27-456f-11f0-a353-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:20:38,796 - ERROR - Error creating table systemhealth: Incorrect padding
+2025-06-09 21:20:38,796 - INFO - Client-Request-ID=3564aa28-456f-11f0-a180-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:20:38,797 - ERROR - Error creating table monetarydata: Incorrect padding
+2025-06-09 21:20:38,797 - INFO - Starting HYBRID BTC data collection...
+2025-06-09 21:20:54,406 - INFO - Daily EMA200 calculated: $91938.31 (using 451 days of data)
+2025-06-09 21:21:09,583 - INFO - Weekly RSI calculated: 76.6 (using 105 weeks of data)
+2025-06-09 21:21:09,584 - INFO - Collecting MVRV data from TradingView...
+2025-06-09 21:21:31,716 - INFO - Starting MSTR analysis with improved options logic...
+2025-06-09 21:21:45,939 - INFO - Model price element text: '$483'
+2025-06-09 21:21:45,963 - INFO - Deviation element text: 'Undervalued by 18.8%'
+2025-06-09 21:22:25,097 - INFO - Starting FIXED monetary policy analysis with proper date handling...
+2025-06-09 21:22:25,097 - INFO - Client-Request-ID=74c0fe81-456f-11f0-8a2c-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:22:25,098 - WARNING - Cache check failed: Incorrect padding
+2025-06-09 21:22:25,098 - INFO - Fetching fresh FRED data with proper historical periods...
+2025-06-09 21:22:28,440 - INFO - Client-Request-ID=76bf05b0-456f-11f0-b528-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:22:28,440 - ERROR - Error caching FIXED monetary data: Incorrect padding
+2025-06-09 21:22:28,474 - INFO - Starting HIGH QUALITY Bitcoin Laws screenshot capture...
+2025-06-09 21:23:22,831 - INFO - HIGH QUALITY Bitcoin Laws screenshot: 800x600, 97,132 chars
+2025-06-09 21:23:25,070 - INFO - Client-Request-ID=98801572-456f-11f0-ad6d-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:23:25,071 - ERROR - Error storing data for BTC: Incorrect padding
+2025-06-09 21:23:25,071 - INFO - Client-Request-ID=98803c7e-456f-11f0-b0e5-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:23:25,071 - ERROR - Error storing data for MSTR: Incorrect padding
+2025-06-09 21:23:25,071 - INFO - Client-Request-ID=98803c7f-456f-11f0-b4fb-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:23:25,071 - ERROR - Error storing collection summary: Incorrect padding
+2025-06-09 21:23:25,072 - INFO - Data storage complete: 0 successful, 2 failed
+2025-06-09 21:23:25,072 - INFO - Original image size: 800x600
+2025-06-09 21:23:25,085 - INFO - Uploading 79,568 character image to Imgur...
+2025-06-09 21:23:26,789 - INFO - Client-Request-ID=99867a79-456f-11f0-adb8-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:23:26,790 - ERROR - Error getting signal state: Incorrect padding
+2025-06-09 21:23:26,790 - INFO - Client-Request-ID=9986a1b0-456f-11f0-8666-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:23:26,790 - ERROR - Error saving signal state: Incorrect padding
+2025-06-09 21:23:29,053 - INFO - Email sent successfully to 8 recipients
+2025-06-09 21:23:29,054 - INFO - Enhanced Bitcoin + MSTR + Laws report sent to 8 recipients

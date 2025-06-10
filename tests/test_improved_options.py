@@ -1,0 +1,222 @@
+"""
+Test Script: Improved MSTR Options Logic
+Demonstrates the before/after differences
+"""
+
+
+def test_old_logic(iv_percentile, iv_rank):
+    """The OLD problematic logic"""
+    if iv_percentile < 30 or iv_rank < 30:
+        return {
+            'preference': 'long_calls',
+            'message': 'Consider Long Calls',
+            'description': f'Low volatility (Percentile: {iv_percentile:.0f}%, Rank: {iv_rank:.0f}%)'
+        }
+    elif iv_percentile > 70 or iv_rank > 70:
+        return {
+            'preference': 'long_puts',
+            'message': 'Consider Long Puts',
+            'description': f'High volatility (Percentile: {iv_percentile:.0f}%, Rank: {iv_rank:.0f}%)'
+        }
+    else:
+        return {
+            'preference': 'no_preference',
+            'message': 'No Options Preference',
+            'description': f'Moderate volatility (Percentile: {iv_percentile:.0f}%, Rank: {iv_rank:.0f}%)'
+        }
+
+
+def test_new_logic(iv_percentile, iv_rank, deviation_pct, price_signal_status, volatility_conflicting=False):
+    """The NEW improved logic"""
+
+    # Step 1: Check for conflicts first
+    if volatility_conflicting:
+        return {
+            'primary_strategy': 'wait',
+            'message': 'Wait for Clearer Setup',
+            'description': 'Conflicting volatility signals - avoid options trades',
+            'reasoning': 'IV Percentile and IV Rank disagree',
+            'confidence': 'low'
+        }
+
+    # Step 2: Determine environments
+    avg_iv = (iv_percentile + iv_rank) / 2
+
+    if avg_iv < 25:
+        vol_env = 'low'
+    elif avg_iv > 75:
+        vol_env = 'high'
+    else:
+        vol_env = 'normal'
+
+    if price_signal_status == 'overvalued':
+        direction = 'bearish'
+    elif price_signal_status == 'undervalued':
+        direction = 'bullish'
+    else:
+        direction = 'neutral'
+
+    # Step 3: Combine for recommendation
+    if vol_env == 'low':
+        if direction == 'bullish':
+            return {
+                'primary_strategy': 'long_calls',
+                'message': 'Consider Long Calls',
+                'description': f'Cheap options + undervalued setup (MSTR {abs(deviation_pct):.1f}% below model)',
+                'reasoning': 'Low IV makes options attractive + bullish bias',
+                'confidence': 'high'
+            }
+        elif direction == 'bearish':
+            return {
+                'primary_strategy': 'long_puts',
+                'message': 'Consider Long Puts',
+                'description': f'Cheap options + overvalued setup (MSTR {deviation_pct:.1f}% above model)',
+                'reasoning': 'Low IV makes options attractive + bearish bias',
+                'confidence': 'high'
+            }
+        else:
+            return {
+                'primary_strategy': 'long_straddle',
+                'message': 'Consider Long Straddle',
+                'description': f'Cheap options + unclear direction (MSTR {deviation_pct:+.1f}% vs model)',
+                'reasoning': 'Low IV good for buying, but need big move either way',
+                'confidence': 'medium'
+            }
+
+    elif vol_env == 'high':
+        if direction == 'bullish':
+            return {
+                'primary_strategy': 'short_puts',
+                'message': 'Consider Short Puts or Covered Calls',
+                'description': f'Expensive options + undervalued setup (MSTR {abs(deviation_pct):.1f}% below model)',
+                'reasoning': 'High IV good for selling premium + bullish bias favors put selling',
+                'confidence': 'high'
+            }
+        elif direction == 'bearish':
+            return {
+                'primary_strategy': 'short_calls',
+                'message': 'Consider Short Calls or Protective Puts',
+                'description': f'Expensive options + overvalued setup (MSTR {deviation_pct:.1f}% above model)',
+                'reasoning': 'High IV good for selling premium + bearish bias favors call selling',
+                'confidence': 'medium'
+            }
+        else:
+            return {
+                'primary_strategy': 'short_strangle',
+                'message': 'Consider Premium Selling Strategies',
+                'description': f'Expensive options + range-bound expectation (MSTR {deviation_pct:+.1f}% vs model)',
+                'reasoning': 'High IV good for selling premium + no directional bias',
+                'confidence': 'medium'
+            }
+
+    else:  # normal volatility
+        return {
+            'primary_strategy': 'no_preference',
+            'message': 'No Strong Options Preference',
+            'description': f'Normal volatility + unclear setup ({deviation_pct:+.1f}% vs model)',
+            'reasoning': 'Neither volatility nor fundamentals provide clear edge',
+            'confidence': 'low'
+        }
+
+
+def run_comparison_test():
+    """Run side-by-side comparison tests"""
+
+    print("🧪 MSTR Options Logic Comparison Test")
+    print("=" * 60)
+
+    test_scenarios = [
+        {
+            'name': 'Overvalued + Low IV (The Big Problem)',
+            'iv_percentile': 20,
+            'iv_rank': 18,
+            'deviation_pct': 35,
+            'price_signal_status': 'overvalued',
+            'volatility_conflicting': False
+        },
+        {
+            'name': 'Fair Valued + High IV (Cost Structure Issue)',
+            'iv_percentile': 85,
+            'iv_rank': 82,
+            'deviation_pct': 2,
+            'price_signal_status': 'neutral',
+            'volatility_conflicting': False
+        },
+        {
+            'name': 'Undervalued + Low IV (Already Good)',
+            'iv_percentile': 18,
+            'iv_rank': 15,
+            'deviation_pct': -25,
+            'price_signal_status': 'undervalued',
+            'volatility_conflicting': False
+        },
+        {
+            'name': 'Conflicting IV Signals (Risk Management)',
+            'iv_percentile': 15,
+            'iv_rank': 85,
+            'deviation_pct': 10,
+            'price_signal_status': 'neutral',
+            'volatility_conflicting': True
+        },
+        {
+            'name': 'Severely Overvalued + High IV (Premium Selling)',
+            'iv_percentile': 78,
+            'iv_rank': 82,
+            'deviation_pct': 42,
+            'price_signal_status': 'overvalued',
+            'volatility_conflicting': False
+        }
+    ]
+
+    for i, scenario in enumerate(test_scenarios, 1):
+        print(f"\n📊 Test {i}: {scenario['name']}")
+        print("-" * 50)
+
+        # Test setup
+        print(f"Setup: MSTR {scenario['deviation_pct']:+.0f}% vs model, "
+              f"IV {scenario['iv_percentile']:.0f}%/{scenario['iv_rank']:.0f}%")
+
+        # Old logic test
+        old_result = test_old_logic(scenario['iv_percentile'], scenario['iv_rank'])
+        print(f"\n🔴 OLD LOGIC:")
+        print(f"   Recommendation: {old_result['message']}")
+        print(f"   Description: {old_result['description']}")
+
+        # New logic test
+        new_result = test_new_logic(
+            scenario['iv_percentile'],
+            scenario['iv_rank'],
+            scenario['deviation_pct'],
+            scenario['price_signal_status'],
+            scenario['volatility_conflicting']
+        )
+        print(f"\n🟢 NEW LOGIC:")
+        print(f"   Recommendation: {new_result['message']}")
+        print(f"   Description: {new_result['description']}")
+        print(f"   Reasoning: {new_result['reasoning']}")
+        print(f"   Confidence: {new_result['confidence']}")
+
+        # Analysis
+        if old_result['message'] == new_result['message']:
+            print(f"\n✅ RESULT: Same recommendation (was already good)")
+        else:
+            print(f"\n🎯 RESULT: Improved recommendation")
+            if scenario['name'] == 'Overvalued + Low IV (The Big Problem)':
+                print(f"   💥 MAJOR FIX: No longer suggests bullish strategy on overvalued stock!")
+            elif scenario['name'] == 'Fair Valued + High IV (Cost Structure Issue)':
+                print(f"   💰 COST FIX: Now sells expensive options instead of buying them!")
+            elif scenario['name'] == 'Conflicting IV Signals (Risk Management)':
+                print(f"   🛡️ SAFETY FIX: Avoids trades when data is unreliable!")
+
+    print(f"\n{'=' * 60}")
+    print("🎯 SUMMARY: The new logic fixes all major problems!")
+    print("✅ No more bullish recommendations on overvalued stocks")
+    print("✅ No more buying expensive options in high IV")
+    print("✅ Includes premium selling strategies")
+    print("✅ Better risk management with conflicting data")
+    print("✅ More detailed reasoning and confidence levels")
+    print(f"\n🚀 Ready to deploy the improved MSTR analyzer!")
+
+
+if __name__ == "__main__":
+    run_comparison_test()

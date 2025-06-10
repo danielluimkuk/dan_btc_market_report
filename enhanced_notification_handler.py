@@ -1,0 +1,1393 @@
+import smtplib
+import os
+import json
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.image import MIMEImage
+from typing import Dict, List
+import logging
+from datetime import datetime, timezone
+from btc_analyzer import BTCAnalyzer
+import base64
+import requests
+from PIL import Image
+import io
+
+# Import the Imgur uploader
+try:
+    from imgur_uploader import ImgurUploader
+except ImportError:
+    ImgurUploader = None
+
+
+class EnhancedNotificationHandler:
+    """
+    Enhanced notification handler with complete MSTR options strategy integration
+    """
+
+    def __init__(self):
+        self.smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+        self.smtp_port = int(os.getenv('SMTP_PORT', '587'))
+        self.email_user = os.getenv('EMAIL_USER')
+        self.email_password = os.getenv('EMAIL_PASSWORD')
+
+        # Support multiple recipients
+        self.recipients = self._parse_recipients()
+        self.btc_analyzer = BTCAnalyzer()
+
+        # Imgur uploader for Gmail compatibility
+        self.imgur_uploader = ImgurUploader() if ImgurUploader else None
+
+        logging.info(f"Email configured for {len(self.recipients)} recipients")
+        if self.imgur_uploader and self.imgur_uploader.client_id:
+            logging.info("✅ Imgur uploader configured - will use external image hosting")
+        else:
+            logging.warning("⚠️ Imgur not configured - will use embedded images")
+
+    def _parse_recipients(self) -> List[str]:
+        """Parse email recipients from environment variables"""
+        recipients = []
+
+        # Multiple emails in RECIPIENT_EMAILS (comma-separated)
+        recipient_emails = os.getenv('RECIPIENT_EMAILS', '').strip()
+        if recipient_emails:
+            emails = [email.strip() for email in recipient_emails.split(',') if email.strip()]
+            recipients.extend(emails)
+            logging.info(f"Found {len(emails)} emails in RECIPIENT_EMAILS")
+
+        # Fallback to single RECIPIENT_EMAIL
+        if not recipients:
+            single_email = os.getenv('RECIPIENT_EMAIL', '').strip()
+            if single_email:
+                recipients.append(single_email)
+                logging.info(f"Using single email from RECIPIENT_EMAIL")
+
+        # Validate email addresses
+        valid_recipients = []
+        for email in recipients:
+            if '@' in email and '.' in email:
+                valid_recipients.append(email)
+            else:
+                logging.warning(f"Invalid email format: {email}")
+
+        return valid_recipients
+
+    def send_daily_report(self, data: Dict, alerts: List[Dict], bitcoin_laws_screenshot: str = "") -> None:
+        """Send enhanced daily Bitcoin + MSTR report with complete options strategy"""
+        try:
+            # Get current date for report
+            report_date = datetime.now(timezone.utc).strftime('%B %d, %Y')
+            subject = f"📊 Dan's Bitcoin Report - {report_date}"
+
+            # Try Imgur hosting first (most reliable for Gmail)
+            imgur_url = None
+            if bitcoin_laws_screenshot and self.imgur_uploader and self.imgur_uploader.client_id:
+                try:
+                    resized_screenshot = self._resize_screenshot_for_email(bitcoin_laws_screenshot, max_width=800,
+                                                                           max_height=600)
+                    imgur_url = self.imgur_uploader.upload_base64_image(
+                        resized_screenshot,
+                        f"Bitcoin Laws Screenshot - {report_date}"
+                    )
+                    if imgur_url:
+                        logging.info(f"✅ Image uploaded to Imgur: {imgur_url}")
+                    else:
+                        logging.warning("⚠️ Imgur upload failed, falling back to embedded image")
+                except Exception as e:
+                    logging.error(f"Error uploading to Imgur: {str(e)}")
+
+            # Generate HTML with appropriate image method
+            if imgur_url:
+                body = self._generate_enhanced_report_html_with_url(data, alerts, report_date, imgur_url)
+                self._send_email_to_multiple(subject, body, is_html=True)
+                logging.info(f"✅ Email sent with Imgur-hosted image")
+            else:
+                # Fallback methods (embedded images)
+                logging.info("📎 Using embedded image method...")
+                resized_screenshot = self._resize_screenshot_for_email(bitcoin_laws_screenshot)
+                body = self._generate_enhanced_report_html(data, alerts, report_date, resized_screenshot)
+                self._send_email_to_multiple(subject, body, is_html=True)
+                logging.info(f"✅ Email sent with embedded image")
+
+            logging.info(f'Enhanced Bitcoin + MSTR + Laws report sent to {len(self.recipients)} recipients')
+
+        except Exception as e:
+            logging.error(f'Error sending enhanced report: {str(e)}')
+            # Final fallback: send without image
+            try:
+                logging.info("🚨 Sending text-only report as final fallback...")
+                body = self._generate_enhanced_report_html(data, alerts, report_date, "")
+                self._send_email_to_multiple(subject, body, is_html=True)
+                logging.info('✅ Text-only fallback email sent successfully')
+            except Exception as final_error:
+                logging.error(f'All email methods failed: {str(final_error)}')
+
+    def _resize_screenshot_for_email(self, screenshot_base64: str, max_width: int = 800, max_height: int = 600) -> str:
+        """Resize screenshot for email with high quality"""
+        if not screenshot_base64:
+            return ""
+
+        try:
+            image_bytes = base64.b64decode(screenshot_base64)
+            image = Image.open(io.BytesIO(image_bytes))
+
+            original_width, original_height = image.size
+            logging.info(f"Original image size: {original_width}x{original_height}")
+
+            # Calculate scaling
+            width_ratio = max_width / original_width
+            height_ratio = max_height / original_height
+            scale_ratio = min(width_ratio, height_ratio)
+
+            # Only resize if image is larger than max dimensions
+            if scale_ratio < 1:
+                new_width = int(original_width * scale_ratio)
+                new_height = int(original_height * scale_ratio)
+                image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                logging.info(f"Resized image to: {new_width}x{new_height}")
+
+            # Convert to RGB if needed
+            if image.mode in ('RGBA', 'LA', 'P'):
+                rgb_image = Image.new('RGB', image.size, (255, 255, 255))
+                if image.mode == 'RGBA':
+                    rgb_image.paste(image, mask=image.split()[-1])
+                else:
+                    rgb_image.paste(image)
+                image = rgb_image
+
+            # High quality save
+            output_buffer = io.BytesIO()
+            image.save(output_buffer, format='JPEG', quality=85, optimize=True)
+            resized_base64 = base64.b64encode(output_buffer.getvalue()).decode('utf-8')
+
+            original_size = len(screenshot_base64)
+            new_size = len(resized_base64)
+            logging.info(f"Image optimization: {original_size:,} → {new_size:,} chars")
+
+            return resized_base64
+
+        except Exception as e:
+            logging.error(f"Error resizing screenshot: {str(e)}")
+            return ""
+
+    def _generate_enhanced_report_html_with_url(self, data: Dict, alerts: List[Dict], report_date: str,
+                                                image_url: str) -> str:
+        """Generate HTML report using external image URL (Imgur-friendly)"""
+        btc_data = data['assets'].get('BTC', {})
+        mstr_data = data['assets'].get('MSTR', {})
+
+        if 'error' in btc_data and 'error' in mstr_data:
+            return self._generate_error_report_html(report_date, "Both BTC and MSTR collection failed")
+
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                {self._get_email_css()}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>📊 Dan's Market Report</h1>
+                    <h2>📅 {report_date}</h2>
+                </div>
+
+                <div class="assets-grid">
+                    {self._generate_enhanced_btc_section_html(btc_data)}
+                    {self._generate_mstr_section_html(mstr_data)}
+                </div>
+
+                <div class="monetary-section-container">
+                    {self._generate_monetary_section_html(data.get('monetary', {}))}
+                </div>
+                
+                <div class="laws-section-container">
+                    {self._generate_bitcoin_laws_section_html_url(image_url)}
+                </div>
+
+                {self._generate_project_footer_html()}
+            </div>
+        </body>
+        </html>
+        """
+        return html
+
+    def _generate_enhanced_report_html(self, data: Dict, alerts: List[Dict], report_date: str,
+                                       bitcoin_laws_screenshot: str = "") -> str:
+        """Generate enhanced HTML report with embedded images"""
+        btc_data = data['assets'].get('BTC', {})
+        mstr_data = data['assets'].get('MSTR', {})
+
+        if 'error' in btc_data and 'error' in mstr_data:
+            return self._generate_error_report_html(report_date, "Both BTC and MSTR collection failed")
+
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                {self._get_email_css()}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>📊 Dan's Market Report</h1>
+                    <h2>📅 {report_date}</h2>
+                </div>
+
+                <div class="assets-grid">
+                    {self._generate_enhanced_btc_section_html(btc_data)}
+                    {self._generate_mstr_section_html(mstr_data)}
+                </div>
+                
+                
+                <div class="monetary-section-container">
+                    {self._generate_monetary_section_html(data.get('monetary', {}))}
+                </div>
+                
+                <div class="laws-section-container">
+                    {self._generate_bitcoin_laws_section_html(bitcoin_laws_screenshot)}
+                </div>
+
+                {self._generate_project_footer_html()}
+            </div>
+        </body>
+        </html>
+        """
+        return html
+
+    def _generate_monetary_section_html(self, monetary_data: Dict) -> str:
+        """Generate monetary policy section HTML"""
+        if not monetary_data or not monetary_data.get('success'):
+            return f"""
+            <div class="monetary-section">
+                <div class="monetary-header">
+                    <span class="monetary-symbol">🏦 Monetary Policy Analysis</span>
+                    <span style="color: #dc3545;">Data Unavailable</span>
+                </div>
+                <div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #ddd;">
+                    <div style="color: #555; font-size: 14px; margin-bottom: 12px; line-height: 1.4;">
+                        ⚠️ Monetary data collection failed: {monetary_data.get('error', 'Unknown error') if monetary_data else 'No data provided'}
+                    </div>
+                    <p>🔗 <a href="https://fred.stlouisfed.org" target="_blank" style="color: #28a745; text-decoration: none; font-weight: 600;">
+                        Visit FRED directly for latest data →
+                    </a></p>
+                </div>
+            </div>
+            """
+
+        # Extract data
+        data_date = monetary_data.get('data_date', 'Unknown')
+        days_old = monetary_data.get('days_old', 0)
+        fixed_rates = monetary_data.get('fixed_rates', {})
+        table_data = monetary_data.get('table_data', [])
+        true_inflation_rate = monetary_data.get('true_inflation_rate')  # ← FIXED: Now properly accessed
+        m2_20y_growth = monetary_data.get('m2_20y_growth')  # ← FIXED: Now properly accessed
+
+        # Format data freshness
+        if days_old == 0:
+            freshness = "Today"
+        elif days_old == 1:
+            freshness = "1 day ago"
+        else:
+            freshness = f"{days_old} days ago"
+
+        # Generate fixed rates cards (updated 4-box layout)
+        fixed_rates_html = ""
+
+        if 'fed_funds' in fixed_rates:
+            fixed_rates_html += f"""
+            <div class="rate-card">
+                <div class="rate-label">Fed Funds Rate</div>
+                <div class="rate-value">{fixed_rates['fed_funds']:.2f}%</div>
+            </div>
+            """
+
+        if 'real_rate' in fixed_rates:
+            fixed_rates_html += f"""
+            <div class="rate-card">
+                <div class="rate-label">Real Interest Rate</div>
+                <div class="rate-value">{fixed_rates['real_rate']:.1f}%</div>
+                <div class="rate-description">Fed Funds - Core CPI</div>
+            </div>
+            """
+
+        # True Inflation box - FIXED: Now properly calculated
+        if true_inflation_rate is not None:
+            fixed_rates_html += f"""
+            <div class="rate-card">
+                <div class="rate-label">True Inflation</div>
+                <div class="rate-value">{true_inflation_rate:.1f}%</div>
+                <div class="rate-description">20Y M2 CAGR</div>
+            </div>
+            """
+        else:
+            fixed_rates_html += f"""
+            <div class="rate-card">
+                <div class="rate-label">True Inflation</div>
+                <div class="rate-value">N/A</div>
+                <div class="rate-description">20Y M2 CAGR</div>
+            </div>
+            """
+
+        # Breakeven ROI box - FIXED: Now properly calculated
+        if true_inflation_rate is not None:
+            breakeven_rate = true_inflation_rate / (1 - 0.25)  # Assume 25% tax rate
+            fixed_rates_html += f"""
+            <div class="rate-card">
+                <div class="rate-label">Breakeven ROI</div>
+                <div class="rate-value">{breakeven_rate:.1f}%</div>
+                <div class="rate-description">After-tax (25%)</div>
+            </div>
+            """
+        else:
+            fixed_rates_html += f"""
+            <div class="rate-card">
+                <div class="rate-label">Breakeven ROI</div>
+                <div class="rate-value">N/A</div>
+                <div class="rate-description">After-tax (25%)</div>
+            </div>
+            """
+
+        # Generate table rows
+        table_rows_html = ""
+        for row in table_data:
+            table_rows_html += f"""
+            <tr>
+                <td>{row.get('metric', 'Unknown')}</td>
+                <td class="neutral-change">{row.get('monthly', 'N/A')}</td>
+                <td class="neutral-change">{row.get('ytd', 'N/A')}</td>
+                <td class="neutral-change">{row.get('1y', 'N/A')}</td>
+                <td class="neutral-change">{row.get('3y', 'N/A')}</td>
+                <td class="neutral-change">{row.get('5y', 'N/A')}</td>
+                <td class="neutral-change">{row.get('10y', 'N/A')}</td>
+                <td class="neutral-change">{row.get('20y', 'N/A')}</td>
+            </tr>
+            """
+
+        # Generate investment tools comparison table
+        investment_tools_html = ""
+        if true_inflation_rate is not None:
+            investment_tools = [
+                ("Savings Account", 0.5),
+                ("Money Market", 2.0),
+                ("1-Year CD", 4.5),
+                ("10-Year Treasury", 4.3),
+                ("S&P 500 (Historical)", 10.0)
+            ]
+
+            for tool_name, tool_return in investment_tools:
+                real_return = tool_return - true_inflation_rate
+                real_return_class = "positive-change" if real_return > 0 else "negative-change"
+
+                investment_tools_html += f"""
+                <tr>
+                    <td>{tool_name}</td>
+                    <td class="neutral-change">{tool_return:.1f}%</td>
+                    <td class="{real_return_class}">{real_return:+.1f}%</td>
+                </tr>
+                """
+
+        investment_tools_section = ""
+        if investment_tools_html:
+            investment_tools_section = f"""
+            <div class="monetary-table-container" style="margin-top: 20px;">
+                <h4 style="margin: 0 0 15px 0; color: #333; font-size: 16px; font-weight: 600;">💼 Traditional Investment Tools vs True Inflation</h4>
+                <table class="monetary-table">
+                    <thead>
+                        <tr>
+                            <th>Investment Tool</th>
+                            <th>Return</th>
+                            <th>Real Return*</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {investment_tools_html}
+                    </tbody>
+                </table>
+                <div style="font-size: 12px; color: #666; margin-top: 8px;">
+                    *vs True Inflation ({true_inflation_rate:.1f}%)
+                </div>
+            </div>
+            """
+
+        # ORIGINAL Key Insight (unchanged)
+        original_key_insight_html = f"""
+        <div style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px; border: 1px solid #dee2e6;">
+            <div style="color: #555; font-size: 14px; margin-bottom: 12px; line-height: 1.4;">
+                📈 <strong>Key Insight:</strong> Tracking monetary expansion vs reported inflation to assess true purchasing power impact and Bitcoin investment thesis.
+            </div>
+            <p>🔗 <a href="https://fred.stlouisfed.org" target="_blank" style="color: #28a745; text-decoration: none; font-weight: 600;">
+                Source: Federal Reserve Economic Data (FRED) →
+            </a></p>
+        </div>
+        """
+
+        # ADDITIONAL Monetary Reality Insight (new section with enhanced styling)
+        additional_insight_html = ""
+        if true_inflation_rate is not None:
+            additional_insight_html = f"""
+            <div style="margin-top: 15px; padding: 18px; background: linear-gradient(135deg, #fff8e1, #fff3cd); border-radius: 10px; border: 2px solid #ffcc02; box-shadow: 0 2px 8px rgba(255, 204, 2, 0.2);">
+                <div style="color: #856404; font-size: 15px; line-height: 1.6; margin-bottom: 12px;">
+                    💡 <strong style="font-size: 16px;">Monetary Reality:</strong> The M2 money supply and Fed balance sheet expansion represent the true rate of monetary debasement. While official CPI reports may show 2-3% annual inflation, the 20-year M2 expansion reveals a compound annual monetary inflation rate of <strong style="color: #b8860b; font-size: 16px;">{true_inflation_rate:.1f}%</strong> - more than double the reported rate.
+                </div>
+                <div style="color: #6c5214; font-size: 14px; line-height: 1.5; padding-top: 10px; border-top: 1px solid rgba(255, 204, 2, 0.3);">
+                    This monetary expansion effectively transfers wealth from savers to asset holders, undermining the credibility of fiat currency and strengthening the case for <strong>Bitcoin as a store of value</strong> against monetary debasement.
+                </div>
+            </div>
+            """
+        else:
+            # Fallback if no true inflation rate calculated
+            additional_insight_html = f"""
+            <div style="margin-top: 15px; padding: 18px; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 10px; border: 2px solid #6c757d; box-shadow: 0 2px 8px rgba(108, 117, 125, 0.2);">
+                <div style="color: #495057; font-size: 15px; line-height: 1.6; margin-bottom: 12px;">
+                    💡 <strong style="font-size: 16px;">Monetary Reality:</strong> The M2 money supply and Fed balance sheet expansion represent the true rate of monetary debasement. While official CPI reports may show 2-3% annual inflation, historical M2 expansion typically reveals monetary inflation rates significantly higher than reported CPI.
+                </div>
+                <div style="color: #6c757d; font-size: 14px; line-height: 1.5; padding-top: 10px; border-top: 1px solid rgba(108, 117, 125, 0.3);">
+                    This monetary expansion effectively transfers wealth from savers to asset holders, undermining the credibility of fiat currency and strengthening the case for <strong>Bitcoin as a store of value</strong> against monetary debasement.
+                </div>
+            </div>
+            """
+
+        return f"""
+        <div class="monetary-section">
+            <div class="monetary-header">
+                <span class="monetary-symbol">🏦 Monetary Policy Analysis</span>
+                <span class="monetary-date">Latest: {data_date} ({freshness})</span>
+            </div>
+
+            <!-- Fixed Rates Section -->
+            <div class="fixed-rates-grid">
+                {fixed_rates_html}
+            </div>
+
+            <!-- Main Table -->
+            <div class="monetary-table-container">
+                <table class="monetary-table">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Monthly</th>
+                            <th>YTD</th>
+                            <th>1Y</th>
+                            <th>3Y</th>
+                            <th>5Y</th>
+                            <th>10Y</th>
+                            <th>20Y</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {table_rows_html}
+                    </tbody>
+                </table>
+            </div>
+
+            {investment_tools_section}
+
+            {original_key_insight_html}
+
+            {additional_insight_html}
+        </div>
+        """
+
+    def _get_email_css(self) -> str:
+        """Get complete CSS for email styling"""
+        return """
+            body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
+                margin: 0; 
+                padding: 20px; 
+                background-color: #f5f5f5; 
+                font-size: 14px;
+                line-height: 1.4;
+            }
+
+            .container { 
+                max-width: 1000px; 
+                margin: 0 auto; 
+                background: white; 
+                border-radius: 12px; 
+                overflow: hidden; 
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+            }
+
+            .header { 
+                background: linear-gradient(135deg, #1a1a1a, #333); 
+                color: white; 
+                padding: 30px; 
+                text-align: center; 
+            }
+            .header h1 { 
+                margin: 0; 
+                font-size: 28px; 
+                font-weight: 700;
+                letter-spacing: -0.5px;
+            }
+            .header h2 { 
+                margin: 8px 0 0 0; 
+                font-size: 18px; 
+                font-weight: 400;
+                opacity: 0.9; 
+            }
+
+            .assets-grid { 
+                display: grid; 
+                grid-template-columns: 1fr 1fr; 
+                gap: 0; 
+            }
+
+            .asset-section { 
+                padding: 25px; 
+            }
+            .btc-section { 
+                border-right: 2px solid #f0f0f0; 
+            }
+
+            .asset-header { 
+                display: flex; 
+                justify-content: space-between; 
+                align-items: center; 
+                margin-bottom: 20px; 
+                padding-bottom: 12px; 
+            }
+            .btc-header { 
+                border-bottom: 3px solid #f7931a; 
+            }
+            .mstr-header { 
+                border-bottom: 3px solid #ff6b35; 
+            }
+
+            .asset-symbol { 
+                font-size: 24px; 
+                font-weight: 700;
+            }
+            .asset-price { 
+                font-size: 24px; 
+                font-weight: 700; 
+            }
+            .btc-price { 
+                color: #f7931a; 
+            }
+            .mstr-price { 
+                color: #ff6b35; 
+            }
+
+            .market-status { 
+                font-size: 16px; 
+                font-weight: 600;
+                margin: 15px 0; 
+                text-align: center; 
+                padding: 12px; 
+                border-radius: 8px; 
+            }
+            .bull-market { 
+                background: linear-gradient(135deg, #d4edda, #c3e6cb); 
+                color: #155724; 
+            }
+            .bear-market { 
+                background: linear-gradient(135deg, #f8d7da, #f5c6cb); 
+                color: #721c24; 
+            }
+            .overvalued { 
+                background: linear-gradient(135deg, #f8d7da, #f5c6cb); 
+                color: #721c24; 
+            }
+            .undervalued { 
+                background: linear-gradient(135deg, #d4edda, #c3e6cb); 
+                color: #155724; 
+            }
+            .neutral { 
+                background: linear-gradient(135deg, #e2e3e5, #d6d8db); 
+                color: #495057; 
+            }
+
+            .indicators { 
+                margin: 20px 0; 
+            }
+            .indicators h3 {
+                font-size: 16px;
+                font-weight: 600;
+                margin: 0 0 12px 0;
+                color: #333;
+            }
+            .indicator { 
+                display: flex; 
+                justify-content: space-between; 
+                align-items: center; 
+                padding: 8px 0; 
+                border-bottom: 1px solid #eee; 
+                font-size: 14px; 
+            }
+            .indicator:last-child { 
+                border-bottom: none; 
+            }
+            .indicator-value { 
+                font-weight: 600; 
+                font-size: 14px;
+            }
+
+            .signal-box { 
+                margin: 15px 0; 
+                padding: 14px; 
+                border-radius: 8px; 
+                text-align: center; 
+                border: 2px solid;
+            }
+            .signal-active { 
+                background: linear-gradient(135deg, #d4edda, #c3e6cb); 
+                border-color: #28a745; 
+            }
+            .signal-weakening { 
+                background: linear-gradient(135deg, #fff3cd, #ffeaa7); 
+                border-color: #ffc107; 
+            }
+            .signal-off { 
+                background: linear-gradient(135deg, #f8f9fa, #e9ecef); 
+                border-color: #6c757d; 
+            }
+            .sell-signal { 
+                background: linear-gradient(135deg, #f8d7da, #f5c6cb); 
+                border-color: #dc3545; 
+            }
+            .buy-signal { 
+                background: linear-gradient(135deg, #d1ecf1, #bee5eb); 
+                border-color: #17a2b8; 
+            }
+            .hold-signal { 
+                background: linear-gradient(135deg, #e2e3e5, #d6d8db); 
+                border-color: #6c757d; 
+            }
+            .premium-selling-signal {
+                background: linear-gradient(135deg, #fff3cd, #ffeaa7); 
+                border-color: #ffc107; 
+            }
+
+            .signal-title { 
+                font-size: 15px; 
+                font-weight: 600; 
+                margin-bottom: 6px; 
+            }
+            .signal-subtitle { 
+                font-size: 13px; 
+                margin-bottom: 6px;
+                opacity: 0.9; 
+            }
+            .explanation { 
+                font-size: 12px; 
+                margin-top: 6px; 
+                opacity: 0.8; 
+                line-height: 1.3;
+            }
+
+            .options-strategy {
+                margin: 20px 0;
+            }
+            .options-strategy h3 {
+                font-size: 16px;
+                font-weight: 600;
+                margin: 0 0 12px 0;
+                color: #333;
+            }
+
+            .laws-section-container {
+                grid-column: 1 / -1;
+                margin-top: 20px;
+                padding: 0 25px 25px 25px;
+            }
+
+            .laws-section {
+                background: #f8f9fa;
+                border: 2px solid #6c757d;
+                border-radius: 10px;
+                padding: 20px;
+            }
+
+            .laws-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 18px;
+                padding-bottom: 12px;
+                border-bottom: 3px solid #007bff;
+            }
+
+            .project-footer { 
+                grid-column: 1 / -1;
+                margin-top: 30px; 
+                padding: 15px 25px; 
+                background: #f8f9fa; 
+                border-top: 1px solid #dee2e6; 
+                text-align: center; 
+            }
+
+            .project-links { 
+                font-size: 11px; 
+                color: #6c757d; 
+                margin-top: 8px; 
+            }
+
+            .project-links a { 
+                color: #007bff; 
+                text-decoration: none; 
+                margin: 0 8px; 
+            }
+
+            .project-description { 
+                font-size: 10px; 
+                color: #868e96; 
+                margin-bottom: 5px; 
+                font-style: italic; 
+            }
+
+            @media (max-width: 768px) {
+                body {
+                    padding: 10px;
+                }
+                .assets-grid { 
+                    grid-template-columns: 1fr; 
+                }
+                .btc-section { 
+                    border-right: none; 
+                    border-bottom: 2px solid #f0f0f0; 
+                }
+                .asset-header {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 8px;
+                }
+                .asset-symbol, .asset-price {
+                    font-size: 20px;
+                }
+                .header h1 {
+                    font-size: 24px;
+                }
+            }
+            /* Money Supply Section Styles */
+        .monetary-section-container {
+            grid-column: 1 / -1;
+            margin-top: 20px;
+            padding: 0 25px 25px 25px;
+        }
+
+        .monetary-section {
+            background: #f8f9fa;
+            border: 2px solid #28a745;
+            border-radius: 10px;
+            padding: 25px;
+        }
+
+        .monetary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #28a745;
+        }
+
+        .monetary-symbol {
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .monetary-date {
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .fixed-rates-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .rate-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .rate-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .rate-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #28a745;
+            margin-bottom: 4px;
+        }
+
+        .rate-description {
+            font-size: 11px;
+            color: #888;
+            font-style: italic;
+        }
+
+        .monetary-table-container {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .monetary-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .monetary-table th {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 12px 8px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 12px;
+            border-right: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .monetary-table th:first-child {
+            text-align: left;
+            padding-left: 15px;
+        }
+
+        .monetary-table td {
+            padding: 10px 8px;
+            text-align: center;
+            border-bottom: 1px solid #f0f0f0;
+            border-right: 1px solid #f0f0f0;
+        }
+
+        .monetary-table td:first-child {
+            text-align: left;
+            padding-left: 15px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .monetary-table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .positive-change {
+            color: #dc3545;
+            font-weight: 600;
+        }
+
+        .negative-change {
+            color: #28a745;
+            font-weight: 600;
+        }
+
+        .neutral-change {
+            color: #6c757d;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .fixed-rates-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        """
+
+    def _generate_enhanced_btc_section_html(self, btc_data: Dict) -> str:
+        """Generate enhanced BTC section with unified styling and clear signals"""
+        if 'error' in btc_data:
+            return f"""
+            <div class="asset-section btc-section">
+                <div class="asset-header btc-header">
+                    <span class="asset-symbol">₿ BTC</span>
+                    <span style="color: #dc3545; font-weight: 600;">ERROR</span>
+                </div>
+                <p style="color: #dc3545; margin: 20px 0;">Error: {btc_data['error']}</p>
+            </div>
+            """
+
+        # Analyze signals using BTCAnalyzer
+        signal_analysis = self.btc_analyzer.analyze_btc_signals(btc_data)
+
+        if 'error' in signal_analysis:
+            return f"""
+            <div class="asset-section btc-section">
+                <div class="asset-header btc-header">
+                    <span class="asset-symbol">₿ BTC</span>
+                    <span style="color: #dc3545; font-weight: 600;">ANALYSIS ERROR</span>
+                </div>
+                <p style="color: #dc3545; margin: 20px 0;">Signal analysis error: {signal_analysis['error']}</p>
+            </div>
+            """
+
+        # Extract analysis results
+        price = signal_analysis['price']
+        ema_200 = signal_analysis['ema_200']
+        is_bull_market = signal_analysis['is_bull_market']
+        market_status = "🐂 Bull Market" if is_bull_market else "🐻 Bear Market"
+        indicators = signal_analysis['indicators']
+        signal_conditions = signal_analysis['signal_conditions']
+
+        return f"""
+        <div class="asset-section btc-section">
+            <div class="asset-header btc-header">
+                <span class="asset-symbol">₿ BTC</span>
+                <span class="asset-price btc-price">${price:,.2f}</span>
+            </div>
+
+            <div class="market-status {'bull-market' if is_bull_market else 'bear-market'}">
+                {market_status}
+            </div>
+
+            <div class="indicators">
+                <h3>📊 BTC Indicators</h3>
+                {self._generate_btc_indicators_html(indicators, signal_conditions, ema_200, price)}
+            </div>
+
+            {self._generate_btc_signal_boxes_html(signal_analysis)}
+        </div>
+        """
+
+    def _generate_btc_indicators_html(self, indicators: Dict, signal_conditions: Dict, ema_200: float,
+                                      price: float) -> str:
+        """Generate enhanced BTC indicators HTML with 2 decimal MVRV"""
+        mvrv_info = signal_conditions.get('mvrv', {})
+        rsi_info = signal_conditions.get('rsi', {})
+
+        # Status icons based on conditions
+        mvrv_status = "✅" if mvrv_info.get('condition_met', False) else "❌"
+        rsi_status = "✅" if rsi_info.get('condition_met', False) else "❌"
+
+        # Price vs EMA percentage
+        price_vs_ema_pct = ((price - ema_200) / ema_200 * 100) if ema_200 > 0 else 0
+        ema_status = "🔴" if price_vs_ema_pct > 15 else "🟢" if price_vs_ema_pct < -15 else "🟡"
+
+        return f"""
+        <div class="indicator">
+            <span>MVRV:</span>
+            <span class="indicator-value">{mvrv_info.get('value', 2.1):.2f} {mvrv_status}</span>
+        </div>
+        <div class="indicator">
+            <span>Weekly RSI:</span>
+            <span class="indicator-value">{rsi_info.get('value', 65):.1f} {rsi_status}</span>
+        </div>
+        <div class="indicator">
+            <span>EMA 200:</span>
+            <span class="indicator-value">${ema_200:,.2f}</span>
+        </div>
+        <div class="indicator">
+            <span>Price vs EMA:</span>
+            <span class="indicator-value">{price_vs_ema_pct:+.1f}% {ema_status}</span>
+        </div>
+        """
+
+    def _generate_btc_signal_boxes_html(self, signal_analysis: Dict) -> str:
+        """Generate BTC signal boxes"""
+        signal_status = signal_analysis.get('signal_status', {})
+
+        return f"""
+        <div class="signal-box hold-signal">
+            <div class="signal-title">🟡 HOLD SIGNAL 📊</div>
+            <div class="signal-subtitle">Monitor Position</div>
+            <div class="explanation">Market trending but conditions not extreme yet</div>
+        </div>
+        """
+
+    def _generate_mstr_section_html(self, mstr_data: Dict) -> str:
+        """Generate complete MSTR section with options strategy"""
+        if 'error' in mstr_data:
+            return f"""
+            <div class="asset-section mstr-section">
+                <div class="asset-header mstr-header">
+                    <span class="asset-symbol">📊 MSTR</span>
+                    <span style="color: #dc3545; font-weight: 600;">ERROR</span>
+                </div>
+                <p style="color: #dc3545; margin: 20px 0;">Error: {mstr_data['error']}</p>
+            </div>
+            """
+
+        # Extract MSTR data
+        price = mstr_data.get('price', 0)
+        indicators = mstr_data.get('indicators', {})
+        analysis = mstr_data.get('analysis', {})
+
+        # Get model price and deviation
+        model_price = indicators.get('model_price', 0)
+        deviation_pct = indicators.get('deviation_pct', 0)
+
+        # Determine status
+        if deviation_pct >= 25:
+            status_class = "overvalued"
+            status_text = "🔴 SEVERELY OVERVALUED"
+        elif deviation_pct >= 15:
+            status_class = "overvalued"
+            status_text = "🟠 OVERVALUED"
+        elif deviation_pct <= -25:
+            status_class = "undervalued"
+            status_text = "🟢 SEVERELY UNDERVALUED"
+        elif deviation_pct <= -15:
+            status_class = "undervalued"
+            status_text = "🟢 UNDERVALUED"
+        else:
+            status_class = "neutral"
+            status_text = "🟡 FAIR VALUED"
+
+        return f"""
+        <div class="asset-section mstr-section">
+            <div class="asset-header mstr-header">
+                <span class="asset-symbol">📊 MSTR</span>
+                <span class="asset-price mstr-price">${price:,.2f}</span>
+            </div>
+
+            <div class="market-status {status_class}">
+                {status_text} ({deviation_pct:+.1f}%)
+            </div>
+
+            <div class="indicators">
+                <h3>📈 MSTR Indicators</h3>
+                {self._generate_mstr_indicators_html(indicators)}
+            </div>
+
+            {self._generate_mstr_signals_html(analysis)}
+
+            <div style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+                <p style="margin: 0; font-size: 13px;">📊 <a href="https://microstrategist.com/ballistic.html" target="_blank" style="color: #ff6b35; text-decoration: none; font-weight: 600;">
+                    View MSTR Ballistic Model on MicroStrategist.com
+                </a></p>
+            </div>
+        </div>
+        """
+
+    def _generate_mstr_indicators_html(self, indicators: Dict) -> str:
+        """Generate MSTR indicators section HTML"""
+        model_price = indicators.get('model_price', 0)
+        deviation_pct = indicators.get('deviation_pct', 0)
+        iv = indicators.get('iv', 0)
+        iv_percentile = indicators.get('iv_percentile', 0)
+        iv_rank = indicators.get('iv_rank', 0)
+
+        return f"""
+        <div class="indicator">
+            <span>Model Price:</span>
+            <span class="indicator-value">${model_price:,.2f}</span>
+        </div>
+        <div class="indicator">
+            <span>Deviation:</span>
+            <span class="indicator-value">{deviation_pct:+.1f}%</span>
+        </div>
+        <div class="indicator">
+            <span>Implied Volatility:</span>
+            <span class="indicator-value">{iv:.1f}%</span>
+        </div>
+        <div class="indicator">
+            <span>IV Percentile:</span>
+            <span class="indicator-value">{iv_percentile:.1f}%</span>
+        </div>
+        <div class="indicator">
+            <span>IV Rank:</span>
+            <span class="indicator-value">{iv_rank:.1f}%</span>
+        </div>
+        """
+
+    def _generate_mstr_signals_html(self, analysis: Dict) -> str:
+        """🎯 FIXED: Generate MSTR signals HTML INCLUDING options strategy"""
+        if not analysis:
+            return ""
+
+        html = ""
+
+        # Price Signal
+        price_signal = analysis.get('price_signal', {})
+        if price_signal:
+            status = price_signal.get('status', 'neutral')
+            signal = price_signal.get('signal', 'HOLD')
+            message = price_signal.get('message', '')
+
+            if status == 'overvalued':
+                signal_class = "signal-box sell-signal"
+                emoji = "🔴"
+            elif status == 'undervalued':
+                signal_class = "signal-box buy-signal"
+                emoji = "🟢"
+            else:
+                signal_class = "signal-box hold-signal"
+                emoji = "🟡"
+
+            html += f"""
+            <div class="{signal_class}">
+                <div class="signal-title">{emoji} {signal} SIGNAL</div>
+                <div class="signal-subtitle">{message}</div>
+            </div>
+            """
+
+        # 🎯 FIX: ADD OPTIONS STRATEGY HTML GENERATION (This was the missing piece!)
+        options_strategy = analysis.get('options_strategy', {})
+        if options_strategy:
+            strategy = options_strategy.get('primary_strategy', 'no_preference')
+            message = options_strategy.get('message', 'No Options Preference')
+            description = options_strategy.get('description', '')
+            reasoning = options_strategy.get('reasoning', '')
+            confidence = options_strategy.get('confidence', 'medium')
+
+            # Determine CSS class and emoji based on strategy
+            if strategy in ['long_calls', 'moderate_bullish']:
+                strategy_class = "signal-box buy-signal"
+                emoji = "🟢"
+            elif strategy in ['long_puts', 'moderate_bearish']:
+                strategy_class = "signal-box sell-signal"
+                emoji = "🔴"
+            elif strategy == 'long_straddle':
+                strategy_class = "signal-box hold-signal"
+                emoji = "🟡"
+            elif strategy in ['short_puts', 'short_calls', 'short_strangle']:
+                strategy_class = "signal-box premium-selling-signal"
+                emoji = "📊"
+            elif strategy == 'wait':
+                strategy_class = "signal-box signal-weakening"
+                emoji = "⚠️"
+            else:
+                strategy_class = "signal-box hold-signal"
+                emoji = "🟫"
+
+            html += f"""
+            <div class="options-strategy">
+                <h3>🎯 Options Strategy</h3>
+
+                <div class="{strategy_class}">
+                    <div class="signal-title">{emoji} {message}</div>
+                    <div class="signal-subtitle">{description}</div>
+                    <div class="explanation">{reasoning}</div>
+                </div>
+
+                <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; margin-top: 10px;">
+                    <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #333;">💡 Strategy Details:</div>
+                    <div style="font-size: 12px; color: #555; line-height: 1.4;">
+                        <strong>Reasoning:</strong> {reasoning}<br>
+                        <strong>Confidence:</strong> {confidence.title()}
+                    </div>
+                </div>
+            </div>
+            """
+
+        return html
+
+    def _generate_bitcoin_laws_section_html_url(self, image_url: str) -> str:
+        """Generate Bitcoin Laws section HTML with external image URL"""
+        if not image_url:
+            return """
+            <div class="asset-section laws-section">
+                <div class="asset-header laws-header">
+                    <span class="asset-symbol">⚖️ Bitcoin Laws</span>
+                    <span style="color: #dc3545;">Image Upload Failed</span>
+                </div>
+                <div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #ddd;">
+                    <div style="color: #555; font-size: 14px; margin-bottom: 12px; line-height: 1.4;">
+                        📋 Tracking Bitcoin strategic reserve legislation across all 50 US states.
+                    </div>
+                    <p>🔗 <a href="https://bitcoinlaws.io" target="_blank" style="color: #007bff; text-decoration: none; font-weight: 600;">
+                        Visit bitcoinlaws.io for latest Bitcoin policy developments →
+                    </a></p>
+                </div>
+            </div>
+            """
+
+        return f"""
+        <div class="asset-section laws-section">
+            <div class="asset-header laws-header">
+                <span class="asset-symbol">⚖️ Bitcoin Laws in USA</span>
+                <span style="color: #666; font-size: 13px;">Latest Snapshot</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start;">
+                <div>
+                    <img src="{image_url}" 
+                         alt="Bitcoin Laws Screenshot"
+                         style="width: 100%; max-width: 600px; height: auto; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); display: block;">
+                </div>
+
+                <div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #ddd;">
+                    <div style="color: #555; font-size: 14px; margin-bottom: 12px; line-height: 1.4;">
+                        📋 State-by-state Bitcoin strategic reserve bill progress and legislative developments.
+                    </div>
+                    <p>🔗 <a href="https://bitcoinlaws.io" target="_blank" style="color: #007bff; text-decoration: none; font-weight: 600;">
+                        Visit bitcoinlaws.io for full details →
+                    </a></p>
+                </div>
+            </div>
+        </div>
+        """
+
+    def _generate_bitcoin_laws_section_html(self, screenshot_base64: str) -> str:
+        """Generate Bitcoin Laws section HTML with embedded image"""
+        if not screenshot_base64:
+            return """
+            <div class="asset-section laws-section">
+                <div class="asset-header laws-header">
+                    <span class="asset-symbol">⚖️ Bitcoin Laws</span>
+                    <span style="color: #dc3545;">Screenshot Unavailable</span>
+                </div>
+                <div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #ddd;">
+                    <div style="color: #555; font-size: 14px; margin-bottom: 12px; line-height: 1.4;">
+                        📋 Tracking Bitcoin strategic reserve legislation across all 50 US states.
+                    </div>
+                    <p>🔗 <a href="https://bitcoinlaws.io" target="_blank" style="color: #007bff; text-decoration: none; font-weight: 600;">
+                        Visit bitcoinlaws.io for latest developments →
+                    </a></p>
+                </div>
+            </div>
+            """
+
+        return f"""
+        <div class="asset-section laws-section">
+            <div class="asset-header laws-header">
+                <span class="asset-symbol">⚖️ Bitcoin Laws in USA</span>
+                <span style="color: #666; font-size: 13px;">Latest Snapshot</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start;">
+                <div>
+                    <img src="data:image/jpeg;base64,{screenshot_base64}" 
+                         alt="Bitcoin Laws Screenshot"
+                         style="width: 100%; max-width: 300px; height: auto; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: block;">
+                </div>
+
+                <div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #ddd;">
+                    <div style="color: #555; font-size: 14px; margin-bottom: 12px; line-height: 1.4;">
+                        📋 State-by-state Bitcoin strategic reserve bill progress and legislative developments.
+                    </div>
+                    <p>🔗 <a href="https://bitcoinlaws.io" target="_blank" style="color: #007bff; text-decoration: none; font-weight: 600;">
+                        Visit bitcoinlaws.io for full details →
+                    </a></p>
+                </div>
+            </div>
+        </div>
+        """
+
+    def _generate_project_footer_html(self) -> str:
+        """Generate project links footer"""
+        return """
+        <div class="project-footer">
+            <div class="project-description">
+                Learn more about this automated Bitcoin market intelligence system
+            </div>
+            <div class="project-links">
+                <a href="https://github.com/danielluimkuk/dan_btc_report_gen/blob/main/README.md" target="_blank">
+                    📖 About This Project (English)
+                </a>
+                |
+                <a href="https://github.com/danielluimkuk/dan_btc_report_gen/blob/main/README_TRAD_CHI.md" target="_blank">
+                    📖 關於此項目 (繁體中文)
+                </a>
+            </div>
+        </div>
+        """
+
+    def _generate_error_report_html(self, report_date: str, error: str) -> str:
+        """Generate error report HTML"""
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                {self._get_email_css()}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>📊 Dan's Market Report</h1>
+                    <h2>📅 {report_date}</h2>
+                </div>
+                <div style="padding: 30px; text-align: center;">
+                    <div style="background: #f8d7da; border: 2px solid #dc3545; padding: 20px; border-radius: 10px;">
+                        <h3>⚠️ Data Collection Error</h3>
+                        <p>{error}</p>
+                        <p>Please check the system logs for more details.</p>
+                    </div>
+                </div>
+                {self._generate_project_footer_html()}
+            </div>
+        </body>
+        </html>
+        """
+
+    def send_error_notification(self, error_message: str) -> None:
+        """Send error notification to all recipients"""
+        try:
+            subject = "⚠️ Market Monitor Error"
+            body = f"""
+            <html>
+            <body style="font-family: Arial, sans-serif; margin: 20px;">
+                <div style="background: #f8d7da; border: 1px solid #dc3545; padding: 20px; border-radius: 5px;">
+                    <h2 style="color: #721c24;">Market Monitor Error</h2>
+                    <p>An error occurred in Dan's market monitoring function:</p>
+                    <pre style="background-color: #f4f4f4; padding: 15px; border-radius: 5px; white-space: pre-wrap;">
+{error_message}
+                    </pre>
+                    <p>Please check the Azure Function logs for more details.</p>
+                </div>
+            </body>
+            </html>
+            """
+
+            self._send_email_to_multiple(subject, body, is_html=True)
+            logging.info(f'Error notification sent to {len(self.recipients)} recipients')
+
+        except Exception as e:
+            logging.error(f'Failed to send error notification: {str(e)}')
+
+    def _send_email_to_multiple(self, subject: str, body: str, is_html: bool = False) -> None:
+        """Send email to multiple recipients efficiently"""
+        if not all([self.email_user, self.email_password]):
+            logging.warning('Email credentials not configured')
+            return
+
+        if not self.recipients:
+            logging.warning('No email recipients configured')
+            return
+
+        try:
+            # Create message
+            msg = MIMEMultipart()
+            msg['From'] = self.email_user
+            msg['Subject'] = subject
+
+            # Add recipients to BCC for privacy
+            msg['To'] = self.email_user
+            msg['Bcc'] = ', '.join(self.recipients)
+
+            msg.attach(MIMEText(body, 'html' if is_html else 'plain'))
+
+            # Send email
+            server = smtplib.SMTP(self.smtp_server, self.smtp_port)
+            server.starttls()
+            server.login(self.email_user, self.email_password)
+
+            all_recipients = [self.email_user] + self.recipients
+            server.send_message(msg, to_addrs=all_recipients)
+            server.quit()
+
+            logging.info(f"Email sent successfully to {len(self.recipients)} recipients")
+
+        except Exception as e:
+            logging.error(f"Failed to send email: {str(e)}")
+            raise

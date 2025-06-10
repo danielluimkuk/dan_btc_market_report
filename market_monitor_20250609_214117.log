@@ -1,0 +1,144 @@
+2025-06-09 21:41:17,704 - INFO - Polygon API connection test successful
+2025-06-09 21:41:17,894 - INFO - CoinGecko connection test successful - BTC: $108,750.00
+2025-06-09 21:41:17,894 - INFO - Found 1 emails in RECIPIENT_EMAILS
+2025-06-09 21:41:17,895 - INFO - Client-Request-ID=17f43869-4572-11f0-934c-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:41:17,895 - ERROR - Error creating table assetdata: Incorrect padding
+2025-06-09 21:41:17,895 - INFO - Client-Request-ID=17f4386a-4572-11f0-8d43-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:41:17,896 - ERROR - Error creating table alerthistory: Incorrect padding
+2025-06-09 21:41:17,896 - INFO - Client-Request-ID=17f45f5f-4572-11f0-ac90-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:41:17,896 - ERROR - Error creating table systemhealth: Incorrect padding
+2025-06-09 21:41:17,896 - INFO - Client-Request-ID=17f45f60-4572-11f0-b9ea-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:41:17,896 - ERROR - Error creating table monetarydata: Incorrect padding
+2025-06-09 21:41:17,896 - INFO - Email configured for 1 recipients
+2025-06-09 21:41:17,896 - INFO -  Imgur uploader configured - will use external image hosting
+2025-06-09 21:41:17,896 - INFO - Client-Request-ID=17f45f61-4572-11f0-82e2-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:41:17,896 - ERROR - Error creating table assetdata: Incorrect padding
+2025-06-09 21:41:17,897 - INFO - Client-Request-ID=17f4917b-4572-11f0-9fcd-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:41:17,897 - ERROR - Error creating table alerthistory: Incorrect padding
+2025-06-09 21:41:17,897 - INFO - Client-Request-ID=17f4917c-4572-11f0-80c1-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:41:17,897 - ERROR - Error creating table systemhealth: Incorrect padding
+2025-06-09 21:41:17,897 - INFO - Client-Request-ID=17f4917d-4572-11f0-b0d6-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:41:17,897 - ERROR - Error creating table monetarydata: Incorrect padding
+2025-06-09 21:41:17,897 - INFO - Starting HYBRID BTC data collection...
+2025-06-09 21:41:17,897 - INFO -  Attempting CoinGecko live price collection...
+2025-06-09 21:41:18,066 - INFO -  CoinGecko live BTC price: $108,749.00 -  LIVE PRICE (updated 85s ago)
+2025-06-09 21:41:18,066 - INFO -  HYBRID BTC: LIVE price from CoinGecko: $108,749.00
+2025-06-09 21:41:18,066 - INFO -      LIVE PRICE (updated 85s ago)
+2025-06-09 21:41:18,066 - INFO -     SUCCESS: Using real-time market data!
+2025-06-09 21:41:33,330 - INFO - Daily EMA200 calculated: $91938.31 (using 451 days of data)
+2025-06-09 21:41:33,331 - INFO -  EMA200 collected: $91,938.31
+2025-06-09 21:41:48,498 - INFO - Weekly RSI calculated: 76.6 (using 105 weeks of data)
+2025-06-09 21:41:48,499 - INFO -  Weekly RSI collected: 76.6
+2025-06-09 21:41:48,499 - INFO - Collecting MVRV data from TradingView...
+2025-06-09 21:42:16,807 - INFO -  MVRV collected: 2.23
+2025-06-09 21:42:16,807 - INFO -  Complete BTC indicators: EMA200=$91,938.31, Weekly RSI=76.6, MVRV=2.23
+2025-06-09 21:42:16,807 - INFO -  Complete HYBRID BTC data collected successfully!
+2025-06-09 21:42:16,807 - INFO -  MSTR data collection attempt 1/3
+2025-06-09 21:42:16,918 - INFO - Starting MSTR analysis with improved options logic...
+2025-06-09 21:42:31,368 - INFO - Model price element text: '$485'
+2025-06-09 21:42:31,369 - INFO -  Model price extracted: $485.00
+2025-06-09 21:42:31,390 - INFO - Deviation element text: 'Undervalued by 19.1%'
+2025-06-09 21:42:31,390 - INFO -  Deviation extracted: -19.1%
+2025-06-09 21:42:31,390 - INFO -  Actual price calculated: $392.36
+2025-06-09 21:43:10,846 - INFO -  MSTR data validation passed: Price=$392.36, Model=$485.00, Dev=-19.1%, IV=52.8%
+2025-06-09 21:43:10,846 - INFO -  Note: IV Rank and Percentile are 0%, but main IV (52.8%) is valid - options strategy will still be generated
+2025-06-09 21:43:10,846 - INFO -  MSTR data collection successful on attempt 1
+2025-06-09 21:43:10,846 - INFO - Starting FIXED monetary policy analysis with proper date handling...
+2025-06-09 21:43:10,856 - INFO - Client-Request-ID=5b471d0b-4572-11f0-84bd-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:43:10,856 - WARNING - Cache check failed: Incorrect padding
+2025-06-09 21:43:10,856 - INFO - Fetching fresh FRED data with proper historical periods...
+2025-06-09 21:43:10,856 - INFO -  Fetching FRED data from 2000-06-15 to 2025-06-09
+2025-06-09 21:43:10,856 - INFO -  Requesting FRED series: M2SL (M2 Money Supply)
+2025-06-09 21:43:11,549 - INFO -  FRED M2SL: 21862.5
+2025-06-09 21:43:11,549 - INFO -     Date range: 1959-01-01 to 2025-04-01
+2025-06-09 21:43:11,549 - INFO -     Data points: 796 (66.2 years)
+2025-06-09 21:43:11,549 - INFO -  M2 MONEY SUPPLY VERIFICATION:
+2025-06-09 21:43:11,549 - INFO -     Current: $21,862B (2025-04-01)
+2025-06-09 21:43:11,586 - INFO -     10Y ago: $11,938B (2015-04-01)
+2025-06-09 21:43:11,586 - INFO -     10Y change: +83.1% (proper date arithmetic)
+2025-06-09 21:43:11,586 - INFO -  Requesting FRED series: CPILFESL (Core CPI)
+2025-06-09 21:43:12,222 - INFO -  FRED CPILFESL: 326.43
+2025-06-09 21:43:12,222 - INFO -     Date range: 1957-01-01 to 2025-04-01
+2025-06-09 21:43:12,222 - INFO -     Data points: 820 (68.2 years)
+2025-06-09 21:43:12,222 - INFO -  Requesting FRED series: CPIAUCSL (Headline CPI)
+2025-06-09 21:43:12,805 - INFO -  FRED CPIAUCSL: 320.321
+2025-06-09 21:43:12,805 - INFO -     Date range: 1947-01-01 to 2025-04-01
+2025-06-09 21:43:12,805 - INFO -     Data points: 940 (78.2 years)
+2025-06-09 21:43:12,805 - INFO -  Requesting FRED series: WALCL (Fed Balance Sheet)
+2025-06-09 21:43:13,455 - INFO -  FRED WALCL: 6672885.0
+2025-06-09 21:43:13,455 - INFO -     Date range: 2002-12-18 to 2025-06-04
+2025-06-09 21:43:13,455 - INFO -     Data points: 1173 (22.5 years)
+2025-06-09 21:43:13,455 - INFO -  Requesting FRED series: FEDFUNDS (Federal Funds Rate)
+2025-06-09 21:43:14,044 - INFO -  FRED FEDFUNDS: 4.33
+2025-06-09 21:43:14,044 - INFO -     Date range: 1954-07-01 to 2025-05-01
+2025-06-09 21:43:14,044 - INFO -     Data points: 851 (70.8 years)
+2025-06-09 21:43:14,044 - INFO -  Requesting FRED series: M2V (M2 Velocity)
+2025-06-09 21:43:14,446 - INFO -  FRED M2V: 1.387
+2025-06-09 21:43:14,446 - INFO -     Date range: 1959-01-01 to 2025-01-01
+2025-06-09 21:43:14,446 - INFO -     Data points: 265 (66.0 years)
+2025-06-09 21:43:14,446 - INFO -  Data freshness: 2025-06-04 (5 days old)
+2025-06-09 21:43:14,484 - INFO - Client-Request-ID=5d724bb3-4572-11f0-b718-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:43:14,484 - ERROR - Error caching FIXED monetary data: Incorrect padding
+2025-06-09 21:43:14,484 - INFO -  M2SL Monthly: 21862 vs 21707 = +0.7% [31 days]
+2025-06-09 21:43:14,484 - INFO -  M2SL YTD: 21862 vs 21520 = +1.6%
+2025-06-09 21:43:14,484 - INFO -  M2SL 1Y: 21862 (2025-04-01) vs 20933 (2024-04-01) = +4.4% [1.0 years]
+2025-06-09 21:43:14,484 - INFO -  M2SL 3Y: 21862 (2025-04-01) vs 21750 (2022-04-01) = +0.5% [3.0 years]
+2025-06-09 21:43:14,493 - INFO -  M2SL 5Y: 21862 (2025-04-01) vs 17006 (2020-04-01) = +28.6% [5.0 years]
+2025-06-09 21:43:14,494 - INFO -  M2SL 10Y: 21862 (2025-04-01) vs 11938 (2015-04-01) = +83.1% [10.0 years]
+2025-06-09 21:43:14,494 - INFO -  M2 10-YEAR VERIFICATION (should be ~82% per user expectation):
+2025-06-09 21:43:14,494 - INFO -     Current FRED value: $21,862B on 2025-04-01
+2025-06-09 21:43:14,494 - INFO -     Historical FRED value: $11,938B on 2015-04-01
+2025-06-09 21:43:14,494 - INFO -     FRED-calculated change: +83.1%
+2025-06-09 21:43:14,494 - INFO -     Data source: 100% FRED API with proper date arithmetic
+2025-06-09 21:43:14,494 - INFO -  M2SL 20Y: 21862 (2025-04-01) vs 6462 (2005-04-01) = +238.3% [20.0 years]
+2025-06-09 21:43:14,494 - INFO -  CPILFESL Monthly: 326 vs 326 = +0.2% [31 days]
+2025-06-09 21:43:14,494 - INFO -  CPILFESL YTD: 326 vs 325 = +0.5%
+2025-06-09 21:43:14,494 - INFO -  CPILFESL 1Y: 326 (2025-04-01) vs 318 (2024-04-01) = +2.8% [1.0 years]
+2025-06-09 21:43:14,494 - INFO -  CPILFESL 3Y: 326 (2025-04-01) vs 290 (2022-04-01) = +12.4% [3.0 years]
+2025-06-09 21:43:14,494 - INFO -  CPILFESL 5Y: 326 (2025-04-01) vs 266 (2020-04-01) = +22.8% [5.0 years]
+2025-06-09 21:43:14,494 - INFO -  CPILFESL 10Y: 326 (2025-04-01) vs 241 (2015-04-01) = +35.3% [10.0 years]
+2025-06-09 21:43:14,494 - INFO -  CPILFESL 20Y: 326 (2025-04-01) vs 200 (2005-04-01) = +63.1% [20.0 years]
+2025-06-09 21:43:14,494 - INFO -  CPIAUCSL Monthly: 320 vs 320 = +0.2% [31 days]
+2025-06-09 21:43:14,494 - INFO -  CPIAUCSL YTD: 320 vs 319 = +0.4%
+2025-06-09 21:43:14,500 - INFO -  CPIAUCSL 1Y: 320 (2025-04-01) vs 313 (2024-04-01) = +2.3% [1.0 years]
+2025-06-09 21:43:14,500 - INFO -  CPIAUCSL 3Y: 320 (2025-04-01) vs 289 (2022-04-01) = +11.0% [3.0 years]
+2025-06-09 21:43:14,500 - INFO -  CPIAUCSL 5Y: 320 (2025-04-01) vs 256 (2020-04-01) = +25.1% [5.0 years]
+2025-06-09 21:43:14,500 - INFO -  CPIAUCSL 10Y: 320 (2025-04-01) vs 236 (2015-04-01) = +35.6% [10.0 years]
+2025-06-09 21:43:14,500 - INFO -  CPIAUCSL 20Y: 320 (2025-04-01) vs 194 (2005-04-01) = +65.4% [20.0 years]
+2025-06-09 21:43:14,500 - INFO -  WALCL Monthly: 6672885 vs 6709277 = -0.5% [35 days]
+2025-06-09 21:43:14,500 - INFO -  WALCL YTD: 6672885 vs 6852491 = -2.6%
+2025-06-09 21:43:14,500 - INFO -  WALCL 1Y: 6672885 (2025-06-04) vs 7284319 (2024-05-29) = -8.4% [1.0 years]
+2025-06-09 21:43:14,500 - INFO -  Fed Balance Sheet 1y: $6,672,885B  $7,284,319B = -8.4%
+2025-06-09 21:43:14,500 - INFO -  WALCL 3Y: 6672885 (2025-06-04) vs 8915050 (2022-06-01) = -25.2% [3.0 years]
+2025-06-09 21:43:14,500 - INFO -  Fed Balance Sheet 3y: $6,672,885B  $8,915,050B = -25.2%
+2025-06-09 21:43:14,500 - INFO -  WALCL 5Y: 6672885 (2025-06-04) vs 7165217 (2020-06-03) = -6.9% [5.0 years]
+2025-06-09 21:43:14,500 - INFO -  Fed Balance Sheet 5y: $6,672,885B  $7,165,217B = -6.9%
+2025-06-09 21:43:14,500 - INFO -  WALCL 10Y: 6672885 (2025-06-04) vs 4465360 (2015-06-03) = +49.4% [10.0 years]
+2025-06-09 21:43:14,500 - INFO -  Fed Balance Sheet 10y: $6,672,885B  $4,465,360B = +49.4%
+2025-06-09 21:43:14,500 - INFO -  WALCL 20Y: 6672885 (2025-06-04) vs 817335 (2005-06-01) = +716.4% [20.0 years]
+2025-06-09 21:43:14,500 - INFO -  Fed Balance Sheet 20y: $6,672,885B  $817,335B = +716.4%
+2025-06-09 21:43:14,500 - INFO -  True Inflation Calculation:
+2025-06-09 21:43:14,500 - INFO -     M2 20Y Growth: +238.3%
+2025-06-09 21:43:14,500 - INFO -     Compound Annual Rate: 6.3%
+2025-06-09 21:43:14,500 - INFO - Starting HIGH QUALITY Bitcoin Laws screenshot capture...
+2025-06-09 21:44:08,713 - INFO - HIGH QUALITY Bitcoin Laws screenshot: 800x600, 97,132 chars
+2025-06-09 21:44:11,187 - INFO -  HIGH QUALITY Bitcoin Laws screenshot captured (97,132 chars, ~71.1KB)
+2025-06-09 21:44:11,194 - INFO - Client-Request-ID=7f3f9bd9-4572-11f0-a98f-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:44:11,194 - ERROR - Error storing data for BTC: Incorrect padding
+2025-06-09 21:44:11,202 - INFO - Client-Request-ID=7f3f9bda-4572-11f0-a726-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:44:11,203 - ERROR - Error storing data for MSTR: Incorrect padding
+2025-06-09 21:44:11,204 - INFO - Client-Request-ID=7f411151-4572-11f0-972e-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:44:11,204 - ERROR - Error storing collection summary: Incorrect padding
+2025-06-09 21:44:11,204 - INFO - Data storage complete: 0 successful, 2 failed
+2025-06-09 21:44:11,204 - INFO - Original image size: 800x600
+2025-06-09 21:44:11,225 - INFO - Image optimization: 97,132  79,568 chars
+2025-06-09 21:44:11,225 - INFO - Uploading 79,568 character image to Imgur...
+2025-06-09 21:44:12,718 - INFO -  Imgur upload successful: https://i.imgur.com/2OXLH8P.jpeg
+2025-06-09 21:44:12,720 - INFO -  Image uploaded to Imgur: https://i.imgur.com/2OXLH8P.jpeg
+2025-06-09 21:44:12,722 - INFO - Client-Request-ID=80286255-4572-11f0-929d-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:44:12,722 - ERROR - Error getting signal state: Incorrect padding
+2025-06-09 21:44:12,722 - INFO - Client-Request-ID=8028b14e-4572-11f0-ba19-900f0c4cc304 Unable to sign the request: Exception=Incorrect padding.
+2025-06-09 21:44:12,722 - ERROR - Error saving signal state: Incorrect padding
+2025-06-09 21:44:15,060 - INFO - Email sent successfully to 1 recipients
+2025-06-09 21:44:15,060 - INFO -  Email sent with Imgur-hosted image
+2025-06-09 21:44:15,060 - INFO - Enhanced Bitcoin + MSTR + Laws report sent to 1 recipients

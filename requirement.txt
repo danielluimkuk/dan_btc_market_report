@@ -1,0 +1,40 @@
+# =============================================================================
+# requirements.txt UPDATES - Add FRED API dependency
+# =============================================================================
+
+# ADD this line to your existing requirements.txt:
+fredapi>=0.5.0
+
+# Your updated requirements.txt should include:
+# Azure Functions Core
+azure-functions>=1.11.0
+azure-cosmosdb-table>=1.0.6
+
+# HTTP Requests and Web Scraping
+requests>=2.28.0
+beautifulsoup4>=4.11.0
+selenium>=4.15.0
+fake-useragent>=1.4.0
+
+# Data Processing
+pandas>=1.5.0
+numpy>=1.24.0
+
+# Image Processing (for Imgur uploads and compression)
+Pillow>=9.0.0
+
+# XML/HTML Parsing
+lxml>=4.9.0
+
+# Environment Variables (.env file support)
+python-dotenv>=1.0.0
+
+# Chrome WebDriver for Selenium
+webdriver-manager>=3.8.0
+
+# Additional dependencies
+urllib3>=1.26.0
+certifi>=2022.12.7
+
+# NEW: FRED API for monetary data
+fredapi>=0.5.0
