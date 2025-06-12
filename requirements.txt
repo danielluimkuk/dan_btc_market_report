@@ -32,3 +32,7 @@ fredapi>=0.5.0
 
 # Date utilities
 python-dateutil>=2.8.0
+
+# Testing framework
+pytest>=7.0.0
+pytest-cov>=4.0.0
