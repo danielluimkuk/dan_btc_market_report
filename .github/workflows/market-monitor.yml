@@ -43,5 +43,7 @@ jobs:
         python github_market_monitor.py
     
     - name: Run Tests
+      env:
+        PYTHONPATH: ${{ github.workspace }}/src
       run: |
-        python -m pytest tests/ -v
+        python -m pytest tests/ -v --tb=short
