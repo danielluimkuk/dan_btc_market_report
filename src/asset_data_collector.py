@@ -313,24 +313,24 @@ class HybridBTCCollector:
         return float(ema.iloc[-1])
 
     def calculate_rsi(self, prices: list, period: int = 14) -> float:
-    """Calculate Relative Strength Index using STANDARD Wilder's method"""
-    if len(prices) < period + 1:
-        raise ValueError(f"Not enough data points for RSI. Need {period + 1}, got {len(prices)}")
+        """Calculate Relative Strength Index using STANDARD Wilder's method"""
+        if len(prices) < period + 1:
+            raise ValueError(f"Not enough data points for RSI. Need {period + 1}, got {len(prices)}")
 
-    prices_series = pd.Series(prices)
-    delta = prices_series.diff().dropna()
-    
-    gains = delta.where(delta > 0, 0)
-    losses = -delta.where(delta < 0, 0)
-    
-    # ✅ FIX: Use Wilder's exponential smoothing instead of simple average
-    avg_gain = gains.ewm(alpha=1/period, adjust=False).mean()
-    avg_loss = losses.ewm(alpha=1/period, adjust=False).mean()
-    
-    rs = avg_gain / avg_loss
-    rsi = 100 - (100 / (1 + rs))
-    
-    return float(rsi.iloc[-1])
+        prices_series = pd.Series(prices)
+        delta = prices_series.diff().dropna()
+        
+        gains = delta.where(delta > 0, 0)
+        losses = -delta.where(delta < 0, 0)
+        
+        # ✅ FIX: Use Wilder's exponential smoothing instead of simple average
+        avg_gain = gains.ewm(alpha=1/period, adjust=False).mean()
+        avg_loss = losses.ewm(alpha=1/period, adjust=False).mean()
+        
+        rs = avg_gain / avg_loss
+        rsi = 100 - (100 / (1 + rs))
+        
+        return float(rsi.iloc[-1])
 
     def test_api_connection(self) -> bool:
         """Test if Polygon API connection is working"""
