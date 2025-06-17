@@ -400,7 +400,8 @@ def process_asset_data(collected_data: Dict) -> Dict:
                     'price': data.get('price', 0),
                     'indicators': data.get('indicators', {}),
                     'metadata': data.get('metadata', {}),
-                    'last_updated': data.get('timestamp')
+                    'last_updated': data.get('timestamp'),
+                    'pi_cycle': data.get('pi_cycle', {})
                 }
             elif asset == 'MSTR':
                 analysis = data.get('analysis', {})
