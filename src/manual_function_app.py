@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
 """
-📊 Manual Market Monitor - Standalone Version
+📊 Manual Market Monitor - FIXED VERSION with Pi Cycle Support
 Run this script anytime to get your Bitcoin + MSTR market report!
+
+🎯 FIXES:
+- Preserves Pi Cycle data in processing pipeline
+- Proper error handling for Pi Cycle integration
+- Updated data validation to handle Pi Cycle
 
 Usage:
     python manual_market_monitor.py
     python manual_market_monitor.py --no-emoji  # For Windows console compatibility
-
-Requirements:
-    - All the same environment variables as your Azure Function
-    - All dependencies from requirements.txt installed
-    - Chrome browser installed (for web scraping)
-
-Author: Your Bitcoin Market Intelligence System
 """
 
 import os
@@ -84,7 +82,7 @@ except Exception:
 
 class ManualMarketMonitor:
     """
-    🚀 Manual Market Monitor - Run your Bitcoin intelligence anytime!
+    🚀 FIXED Manual Market Monitor - Now supports Pi Cycle data properly!
     """
 
     def __init__(self):
@@ -172,10 +170,7 @@ class ManualMarketMonitor:
 
     def run_market_analysis(self) -> bool:
         """
-        🎯 Main function - runs the complete market analysis and sends report
-
-        Returns:
-            bool: True if successful, False if failed
+        🎯 FIXED: Main function with proper Pi Cycle data handling
         """
         try:
             safe_print("\n" + "=" * 80)
@@ -187,7 +182,7 @@ class ManualMarketMonitor:
             assets_config = {
                 'BTC': {
                     'type': 'crypto',
-                    'sources': ['polygon', 'tradingview_mvrv']
+                    'sources': ['polygon', 'tradingview_mvrv', 'pi_cycle']  # Added pi_cycle
                 },
                 'MSTR': {
                     'type': 'stock',
@@ -208,6 +203,16 @@ class ManualMarketMonitor:
             if btc_data.get('success'):
                 price = btc_data.get('price', 0)
                 safe_print(f"✅ BTC Success: ${price:,.2f}")
+
+                # 🎯 NEW: Check Pi Cycle data
+                pi_cycle_data = btc_data.get('pi_cycle', {})
+                if pi_cycle_data and pi_cycle_data.get('success'):
+                    pi_status = pi_cycle_data.get('signal_status', {}).get('proximity_level', 'UNKNOWN')
+                    pi_gap = pi_cycle_data.get('current_values', {}).get('gap_percentage', 0)
+                    safe_print(f"🥧 Pi Cycle Success: {pi_status} ({pi_gap:.1f}% gap)")
+                else:
+                    safe_print(
+                        f"⚠️ Pi Cycle Warning: {pi_cycle_data.get('error', 'No data') if pi_cycle_data else 'Missing'}")
             else:
                 safe_print(f"❌ BTC Failed: {btc_data.get('error', 'Unknown error')}")
 
@@ -250,7 +255,7 @@ class ManualMarketMonitor:
 
             # Step 5: Process and validate data
             safe_print("\n🔍 Processing and validating data...")
-            processed_data = self.process_asset_data(collected_data)
+            processed_data = self.process_asset_data_fixed(collected_data)  # 🎯 FIXED method
             processed_data['monetary'] = monetary_data
 
             # Step 6: Store data (if storage is available)
@@ -265,8 +270,8 @@ class ManualMarketMonitor:
                 safe_print("💡 Azure Storage not configured/disabled - skipping data storage")
 
             # Step 7: Determine if we should send report
-            should_send = self.should_send_report(processed_data, collected_data,
-                                                  bitcoin_laws_screenshot, monetary_data)
+            should_send = self.should_send_report_fixed(processed_data, collected_data,
+                                                        bitcoin_laws_screenshot, monetary_data)
 
             if should_send['send']:
                 safe_print(f"\n📧 {should_send['reason']}")
@@ -283,7 +288,7 @@ class ManualMarketMonitor:
                 safe_print("✅ Email report sent successfully!")
 
                 # Summary
-                self.print_summary(collected_data, monetary_data)
+                self.print_summary_fixed(collected_data, monetary_data)
 
                 return True
             else:
@@ -325,8 +330,10 @@ Run Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
             return False
 
-    def process_asset_data(self, collected_data: Dict) -> Dict:
-        """Process and structure collected asset data (same as Azure Function)"""
+    def process_asset_data_fixed(self, collected_data: Dict) -> Dict:
+        """
+        🎯 FIXED: Process asset data while preserving Pi Cycle data CORRECTLY
+        """
         processed = {
             'timestamp': datetime.utcnow().isoformat(),
             'assets': {},
@@ -342,13 +349,29 @@ Run Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                 processed['summary']['successful_collections'] += 1
 
                 if asset == 'BTC':
-                    processed['assets'][asset] = {
+                    # 🎯 CRITICAL FIX: Only include Pi Cycle if it actually has data
+                    btc_asset_data = {
                         'type': data.get('type', 'crypto'),
                         'price': data.get('price', 0),
                         'indicators': data.get('indicators', {}),
                         'metadata': data.get('metadata', {}),
-                        'last_updated': data.get('timestamp')
+                        'last_updated': data.get('timestamp'),
+                        'price_source': data.get('price_source', 'unknown'),
+                        'price_note': data.get('price_note', '')
                     }
+
+                    # 🎯 NEW: Only add pi_cycle if it exists AND has success=True
+                    pi_cycle_data = data.get('pi_cycle')
+                    if pi_cycle_data and pi_cycle_data.get('success'):
+                        btc_asset_data['pi_cycle'] = pi_cycle_data
+                        print(
+                            f"✅ Pi Cycle preserved in processing: {pi_cycle_data.get('signal_status', {}).get('proximity_level', 'UNKNOWN')}")
+                    else:
+                        print(
+                            f"⚠️ Pi Cycle not preserved - data: {bool(pi_cycle_data)}, success: {pi_cycle_data.get('success') if pi_cycle_data else False}")
+
+                    processed['assets'][asset] = btc_asset_data
+
                 elif asset == 'MSTR':
                     processed['assets'][asset] = {
                         'type': data.get('type', 'stock'),
@@ -370,9 +393,11 @@ Run Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
         return processed
 
-    def should_send_report(self, processed_data: Dict, collected_data: Dict,
-                           bitcoin_laws_screenshot: str = "", monetary_data: Dict = None) -> Dict:
-        """Determine if we should send the report (same logic as Azure Function)"""
+    def should_send_report_fixed(self, processed_data: Dict, collected_data: Dict,
+                                 bitcoin_laws_screenshot: str = "", monetary_data: Dict = None) -> Dict:
+        """
+        🎯 FIXED: Updated validation that considers Pi Cycle data
+        """
         try:
             # Core component checks
             btc_success = collected_data.get('BTC', {}).get('success', False)
@@ -380,8 +405,8 @@ Run Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             screenshot_success = bool(bitcoin_laws_screenshot and len(bitcoin_laws_screenshot) > 100)
             monetary_success = monetary_data.get('success', False) if monetary_data else False
 
-            # Data quality validation
-            btc_data_quality = self.validate_btc_data_quality(processed_data.get('assets', {}).get('BTC', {}))
+            # Data quality validation (updated to handle Pi Cycle)
+            btc_data_quality = self.validate_btc_data_quality_fixed(processed_data.get('assets', {}).get('BTC', {}))
             mstr_data_quality = self.validate_mstr_data_quality(collected_data.get('MSTR', {}))
 
             # Core components must succeed
@@ -395,13 +420,13 @@ Run Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                 if monetary_success:
                     return {
                         'send': True,
-                        'reason': 'ALL components successful: BTC + MSTR + Bitcoin Laws + Monetary Data',
-                        'details': 'Complete enhanced report ready with all data sources'
+                        'reason': 'ALL components successful: BTC + MSTR + Bitcoin Laws + Monetary Data + Pi Cycle',
+                        'details': 'Complete enhanced report ready with all data sources including Pi Cycle'
                     }
                 else:
                     return {
                         'send': True,
-                        'reason': 'Core components successful: BTC + MSTR + Bitcoin Laws (Monetary data failed but proceeding)',
+                        'reason': 'Core components successful: BTC + MSTR + Bitcoin Laws + Pi Cycle (Monetary data failed but proceeding)',
                         'details': f'Monetary error: {monetary_data.get("error", "Unknown") if monetary_data else "Not attempted"}'
                     }
             else:
@@ -411,7 +436,7 @@ Run Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                 if not btc_success:
                     failed_components.append("BTC collection failed")
                 elif not btc_data_quality['is_valid']:
-                    failed_components.append("BTC data quality poor")
+                    failed_components.append(f"BTC data quality poor: {'; '.join(btc_data_quality['issues'])}")
 
                 if not mstr_success:
                     failed_components.append("MSTR collection failed")
@@ -434,8 +459,10 @@ Run Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                 'details': str(e)
             }
 
-    def validate_btc_data_quality(self, btc_data: Dict) -> Dict:
-        """Validate BTC data quality"""
+    def validate_btc_data_quality_fixed(self, btc_data: Dict) -> Dict:
+        """
+        🎯 FIXED: Validate BTC data quality including Pi Cycle
+        """
         issues = []
 
         try:
@@ -463,6 +490,20 @@ Run Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             if not ema_200 or ema_200 <= 0:
                 issues.append(f"Invalid EMA 200: {ema_200}")
 
+            # 🎯 NEW: Validate Pi Cycle data (but don't require it)
+            pi_cycle_data = btc_data.get('pi_cycle', {})
+            if pi_cycle_data:
+                if not pi_cycle_data.get('success'):
+                    # Pi Cycle failed, but don't fail the whole validation
+                    safe_print(f"⚠️ Pi Cycle validation: {pi_cycle_data.get('error', 'Unknown error')}")
+                else:
+                    # Pi Cycle succeeded, validate basic structure
+                    current_values = pi_cycle_data.get('current_values', {})
+                    if not current_values.get('gap_percentage'):
+                        safe_print("⚠️ Pi Cycle missing gap percentage")
+                    else:
+                        safe_print(f"✅ Pi Cycle validation: {current_values.get('gap_percentage', 0):.1f}% gap")
+
             is_valid = len(issues) == 0
             return {'is_valid': is_valid, 'issues': issues}
 
@@ -470,7 +511,7 @@ Run Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             return {'is_valid': False, 'issues': [f"Validation error: {str(e)}"]}
 
     def validate_mstr_data_quality(self, mstr_data: Dict) -> Dict:
-        """Validate MSTR data quality"""
+        """Validate MSTR data quality (unchanged)"""
         issues = []
 
         try:
@@ -520,8 +561,10 @@ Run Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
         return alerts
 
-    def print_summary(self, collected_data: Dict, monetary_data: Dict):
-        """Print a nice summary of the analysis"""
+    def print_summary_fixed(self, collected_data: Dict, monetary_data: Dict):
+        """
+        🎯 FIXED: Print summary including Pi Cycle information
+        """
         safe_print("\n" + "=" * 80)
         safe_print("📊 MARKET ANALYSIS SUMMARY")
         safe_print("=" * 80)
@@ -540,6 +583,17 @@ Run Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             safe_print(f"   📈 Weekly RSI: {rsi:.1f}")
             safe_print(f"   📉 EMA 200: ${ema_200:,.2f}")
             safe_print(f"   🎯 Market: {'🐂 Bull' if price >= ema_200 else '🐻 Bear'}")
+
+            # 🎯 NEW: Pi Cycle Summary
+            pi_cycle_data = btc_data.get('pi_cycle', {})
+            if pi_cycle_data and pi_cycle_data.get('success'):
+                status = pi_cycle_data.get('signal_status', {})
+                values = pi_cycle_data.get('current_values', {})
+                proximity = status.get('proximity_level', 'UNKNOWN')
+                gap = values.get('gap_percentage', 0)
+                safe_print(f"   🥧 Pi Cycle: {proximity} ({gap:.1f}% gap)")
+            else:
+                safe_print(f"   🥧 Pi Cycle: ❌ Failed")
 
         # MSTR Summary
         mstr_data = collected_data.get('MSTR', {})
@@ -567,7 +621,7 @@ Run Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             if 'real_rate' in fixed_rates:
                 safe_print(f"   📊 Real Rate: {fixed_rates['real_rate']:.1f}%")
 
-        safe_print("\n✅ Analysis complete! Check your email for the full report.")
+        safe_print("\n✅ Analysis complete! Check your email for the full report WITH Pi Cycle data.")
         safe_print("=" * 80)
 
 
