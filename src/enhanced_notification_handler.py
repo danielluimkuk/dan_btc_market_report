@@ -1331,7 +1331,7 @@ class EnhancedNotificationHandler:
         """
 
     def send_error_notification(self, error_message: str) -> None:
-        """Send error notification to all recipients"""
+        """Send error notification to EMAIL_USER only (not all recipients)"""
         try:
             subject = "⚠️ Market Monitor Error"
             body = f"""
@@ -1341,19 +1341,54 @@ class EnhancedNotificationHandler:
                     <h2 style="color: #721c24;">Market Monitor Error</h2>
                     <p>An error occurred in Dan's market monitoring function:</p>
                     <pre style="background-color: #f4f4f4; padding: 15px; border-radius: 5px; white-space: pre-wrap;">
-{error_message}
+    {error_message}
                     </pre>
                     <p>Please check the Azure Function logs for more details.</p>
+                    <p style="font-size: 12px; color: #666; margin-top: 20px;">
+                        📧 This error notification was sent to administrator only. 
+                        Regular market reports will resume once the issue is resolved.
+                    </p>
                 </div>
             </body>
             </html>
             """
 
-            self._send_email_to_multiple(subject, body, is_html=True)
-            logging.info(f'Error notification sent to {len(self.recipients)} recipients')
+            # 🎯 MINIMAL CHANGE: Send only to EMAIL_USER instead of all recipients
+            self._send_error_email_to_admin_only(subject, body)
+            logging.info(f'Error notification sent to admin only: {self.email_user}')
 
         except Exception as e:
             logging.error(f'Failed to send error notification: {str(e)}')
+
+    # Add this NEW method to your enhanced_notification_handler.py file:
+
+    def _send_error_email_to_admin_only(self, subject: str, body: str) -> None:
+        """Send email to EMAIL_USER only (for error notifications)"""
+        if not all([self.email_user, self.email_password]):
+            logging.warning('Email credentials not configured')
+            return
+
+        try:
+            # Create message
+            msg = MIMEMultipart()
+            msg['From'] = self.email_user
+            msg['Subject'] = subject
+            msg['To'] = self.email_user  # Only send to yourself
+
+            msg.attach(MIMEText(body, 'html'))
+
+            # Send email
+            server = smtplib.SMTP(self.smtp_server, self.smtp_port)
+            server.starttls()
+            server.login(self.email_user, self.email_password)
+            server.send_message(msg, to_addrs=[self.email_user])  # Only to yourself
+            server.quit()
+
+            logging.info(f"Error notification sent successfully to admin: {self.email_user}")
+
+        except Exception as e:
+            logging.error(f"Failed to send error notification to admin: {str(e)}")
+            raise
 
     def _send_email_to_multiple(self, subject: str, body: str, is_html: bool = False) -> None:
         """Send email to multiple recipients efficiently"""
