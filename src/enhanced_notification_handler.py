@@ -349,7 +349,7 @@ class EnhancedNotificationHandler:
             <div class="pi-cycle-section">
                 <div class="pi-cycle-header">
                     <span class="pi-cycle-symbol">🥧 Pi Cycle Top Indicator</span>
-                    <span style="color: {color}; font-weight: 600;">{proximity_level.replace('_', ' ').title()}</span>
+                    <span style="color: {color}; font-size: 14px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 12px; margin-left: 15px;">{proximity_level.replace('_', ' ').title()}</span>
                 </div>
 
                 <div class="pi-cycle-content">
