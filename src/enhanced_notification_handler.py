@@ -33,6 +33,14 @@ class EnhancedNotificationHandler:
 
         # Support multiple recipients
         self.recipients = self._parse_recipients()
+
+        test_mode = os.getenv('TEST_MODE', '').lower() in ['true', '1', 'yes']
+        if test_mode:
+            self.recipients = [self.email_user] if self.email_user else []
+            logging.info(f"🧪 TEST MODE: All emails will be sent to {self.email_user} only")
+        else:
+            logging.info(f"📧 PRODUCTION MODE: Emails will be sent to {len(self.recipients)} recipients")
+        
         self.btc_analyzer = BTCAnalyzer()
 
         # Imgur uploader for Gmail compatibility
