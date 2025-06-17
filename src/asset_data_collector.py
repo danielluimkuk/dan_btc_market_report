@@ -7,6 +7,9 @@ import time
 import logging
 from mvrv_scraper import MVRVScraper
 
+# 🎯 NEW: Import Pi Cycle indicator
+from pi_cycle_indicator import PiCycleTopIndicator
+
 # Add this at the top of asset_data_collector.py (after imports)
 import os
 import sys
@@ -31,11 +34,12 @@ if os.name == 'nt':  # Windows
 
 class HybridBTCCollector:
     """
-    🎯 HYBRID BTC Collector: CoinGecko Live Prices + Polygon Historical Data
+    🎯 HYBRID BTC Collector: CoinGecko Live Prices + Polygon Historical Data + Pi Cycle
 
     Primary: CoinGecko for live BTC prices (real-time, free)
     Secondary: Polygon.io for EMA200 & Weekly RSI (historical, works on free tier)
     Tertiary: TradingView for MVRV (web scraping)
+    🎯 NEW: Pi Cycle Top Indicator integration
     Fallback: Polygon yesterday close (when CoinGecko fails)
     """
 
@@ -54,14 +58,17 @@ class HybridBTCCollector:
 
         # Initialize MVRV scraper
         self.mvrv_scraper = MVRVScraper()
+        
+        # 🎯 NEW: Initialize Pi Cycle indicator
+        self.pi_cycle_indicator = PiCycleTopIndicator(polygon_api_key=self.api_key)
 
     def get_btc_data(self) -> Dict:
         """
-        Get complete BTC data: Live price + Historical indicators + MVRV
-        Returns dict with: price, weekly_rsi, ema_200, mvrv, price_source
+        🎯 ENHANCED: Get complete BTC data: Live price + Historical indicators + MVRV + Pi Cycle
+        Returns dict with: price, weekly_rsi, ema_200, mvrv, pi_cycle, price_source
         """
         try:
-            logging.info("Starting HYBRID BTC data collection...")
+            logging.info("🎯 Starting ENHANCED HYBRID BTC data collection with Pi Cycle...")
 
             # 🎯 Get LIVE BTC price from CoinGecko (or fallback to Polygon yesterday)
             price_result = self.get_live_btc_price_with_fallback()
@@ -104,9 +111,22 @@ class HybridBTCCollector:
             mvrv_value = self.mvrv_scraper.get_mvrv_value(verbose=False)
             logging.info(f"✅ MVRV collected: {mvrv_value:.2f}")
 
+            # 🎯 NEW: Get Pi Cycle Top indicator data
+            logging.info("🥧 Collecting Pi Cycle Top indicator data...")
+            pi_cycle_data = self.pi_cycle_indicator.get_pi_cycle_analysis(current_btc_price=current_price)
+            
+            # 🎯 DEBUG: Log Pi Cycle collection status
+            if pi_cycle_data.get('success'):
+                proximity_level = pi_cycle_data.get('signal_status', {}).get('proximity_level', 'UNKNOWN')
+                gap_percentage = pi_cycle_data.get('current_values', {}).get('gap_percentage', 0)
+                logging.info(f"✅ Pi Cycle collected: {proximity_level} ({gap_percentage:.1f}% gap)")
+            else:
+                logging.warning(f"⚠️ Pi Cycle collection failed: {pi_cycle_data.get('error', 'Unknown error')}")
+
             # 🎯 FINAL STATUS LOG
             logging.info(f"📊 Complete BTC indicators: EMA200=${daily_ema_200:,.2f}, "
-                        f"Weekly RSI={weekly_rsi:.1f}, MVRV={mvrv_value:.2f}")
+                        f"Weekly RSI={weekly_rsi:.1f}, MVRV={mvrv_value:.2f}, "
+                        f"Pi Cycle={pi_cycle_data.get('signal_status', {}).get('proximity_level', 'FAILED')}")
 
             result = {
                 'success': True,
@@ -117,18 +137,20 @@ class HybridBTCCollector:
                 'ema_200': daily_ema_200,
                 'weekly_rsi': weekly_rsi,
                 'mvrv': mvrv_value,
-                'source': f'{price_source} + polygon_historical + tradingview'
+                'pi_cycle': pi_cycle_data,  # 🎯 NEW: Include Pi Cycle data
+                'source': f'{price_source} + polygon_historical + tradingview + pi_cycle'
             }
 
-            logging.info(f"🎉 Complete HYBRID BTC data collected successfully!")
+            logging.info(f"🎉 Complete ENHANCED HYBRID BTC data collected successfully with Pi Cycle!")
             return result
 
         except Exception as e:
-            logging.error(f"Error collecting BTC data: {str(e)}")
+            logging.error(f"Error collecting enhanced BTC data: {str(e)}")
             return {
                 'success': False,
                 'error': str(e),
-                'timestamp': datetime.now(timezone.utc).isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'pi_cycle': {'success': False, 'error': f'Collection failed: {str(e)}'}  # 🎯 Include failed Pi Cycle
             }
 
     def get_live_btc_price_with_fallback(self) -> Dict:
@@ -377,7 +399,7 @@ class HybridBTCCollector:
 # Updated AssetDataCollector class for integration
 class HybridAssetDataCollector:
     """
-    🎯 HYBRID Asset collector: CoinGecko live prices + Polygon historical + TradingView MVRV
+    🎯 ENHANCED HYBRID Asset collector: CoinGecko live prices + Polygon historical + TradingView MVRV + Pi Cycle
     """
 
     def __init__(self):
@@ -412,7 +434,7 @@ class HybridAssetDataCollector:
             return {'success': False, 'error': str(e)}
 
     def _collect_btc_data_hybrid(self) -> Dict:
-        """🎯 HYBRID: Collect Bitcoin data using CoinGecko live + Polygon historical"""
+        """🎯 ENHANCED HYBRID: Collect Bitcoin data using CoinGecko live + Polygon historical + Pi Cycle"""
         btc_data = {
             'success': False,
             'type': 'crypto',
@@ -421,14 +443,15 @@ class HybridAssetDataCollector:
             'price_source': 'unknown',
             'price_note': '',
             'indicators': {},
-            'metadata': {'source': 'coingecko_live + polygon_historical + tradingview'}
+            'pi_cycle': {},  # 🎯 NEW: Initialize Pi Cycle data
+            'metadata': {'source': 'coingecko_live + polygon_historical + tradingview + pi_cycle'}
         }
 
         try:
             if not self.btc_collector:
                 raise Exception("Hybrid BTC collector not available")
 
-            # Get complete BTC data (live price + historical indicators)
+            # Get complete BTC data (live price + historical indicators + Pi Cycle)
             hybrid_data = self.btc_collector.get_btc_data()
 
             if hybrid_data.get('success'):
@@ -438,20 +461,28 @@ class HybridAssetDataCollector:
                 btc_data['indicators']['ema_200'] = hybrid_data.get('ema_200')
                 btc_data['indicators']['weekly_rsi'] = hybrid_data.get('weekly_rsi')
                 btc_data['indicators']['mvrv'] = hybrid_data.get('mvrv')
+                btc_data['pi_cycle'] = hybrid_data.get('pi_cycle', {})  # 🎯 NEW: Include Pi Cycle data
                 btc_data['metadata']['source'] = hybrid_data.get('source')
                 btc_data['success'] = True
 
-                # 🎯 Enhanced logging with price source info (already in hybrid_data method)
-                # The logging is already done in the HybridBTCCollector.get_btc_data() method
-                # so we don't need to duplicate it here
+                # 🎯 DEBUG: Log Pi Cycle data persistence
+                pi_cycle_success = btc_data['pi_cycle'].get('success', False)
+                if pi_cycle_success:
+                    proximity_level = btc_data['pi_cycle'].get('signal_status', {}).get('proximity_level', 'UNKNOWN')
+                    gap_percentage = btc_data['pi_cycle'].get('current_values', {}).get('gap_percentage', 0)
+                    logging.info(f"🎯 Pi Cycle data persisted: {proximity_level} ({gap_percentage:.1f}% gap)")
+                else:
+                    logging.warning(f"⚠️ Pi Cycle data failed to persist: {btc_data['pi_cycle'].get('error', 'Unknown')}")
 
             else:
                 btc_data['error'] = hybrid_data.get('error', 'Unknown hybrid API error')
+                btc_data['pi_cycle'] = hybrid_data.get('pi_cycle', {'success': False, 'error': 'Collection failed'})
                 logging.error(f'Hybrid API error: {btc_data["error"]}')
 
         except Exception as e:
             btc_data['error'] = str(e)
-            logging.error(f'Error collecting hybrid BTC data: {str(e)}')
+            btc_data['pi_cycle'] = {'success': False, 'error': f'Collection exception: {str(e)}'}
+            logging.error(f'Error collecting enhanced hybrid BTC data: {str(e)}')
 
         return btc_data
 
@@ -479,7 +510,7 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-    print("Testing HYBRID BTC Collector (CoinGecko Live + Polygon Historical)...")
+    print("Testing ENHANCED HYBRID BTC Collector (CoinGecko Live + Polygon Historical + Pi Cycle)...")
     print("=" * 80)
 
     try:
@@ -497,13 +528,23 @@ if __name__ == "__main__":
             btc_data = collector.get_btc_data()
 
             if btc_data['success']:
-                print(f"\n📊 Complete HYBRID BTC Data Retrieved:")
+                print(f"\n📊 Complete ENHANCED HYBRID BTC Data Retrieved:")
                 print(f"   💰 Price: ${btc_data['price']:,.2f}")
                 print(f"   📡 Source: {btc_data['price_source']}")
                 print(f"   📝 Note: {btc_data['price_note']}")
                 print(f"   📈 Daily EMA200: ${btc_data['ema_200']:,.2f}")
                 print(f"   📊 Weekly RSI: {btc_data['weekly_rsi']:.1f}")
                 print(f"   🔥 MVRV: {btc_data['mvrv']:.2f}")
+                
+                # 🎯 NEW: Show Pi Cycle data
+                pi_cycle = btc_data.get('pi_cycle', {})
+                if pi_cycle.get('success'):
+                    proximity_level = pi_cycle.get('signal_status', {}).get('proximity_level', 'UNKNOWN')
+                    gap_percentage = pi_cycle.get('current_values', {}).get('gap_percentage', 0)
+                    print(f"   🥧 Pi Cycle: {proximity_level} ({gap_percentage:.1f}% gap)")
+                else:
+                    print(f"   🥧 Pi Cycle: FAILED - {pi_cycle.get('error', 'Unknown error')}")
+                    
                 print(f"   🕐 Timestamp: {btc_data['timestamp']}")
                 print(f"   📡 Full Source: {btc_data['source']}")
 
@@ -525,3 +566,4 @@ if __name__ == "__main__":
         print("   1. Create a .env file with POLYGON_API_KEY=your_api_key")
         print("   2. Install required packages: pip install pandas numpy requests python-dotenv")
         print("   3. Ensure internet connection for CoinGecko API")
+        print("   4. Ensure pi_cycle_indicator.py is in the same directory")
