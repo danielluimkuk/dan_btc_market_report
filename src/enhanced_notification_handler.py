@@ -22,7 +22,7 @@ except ImportError:
 
 class EnhancedNotificationHandler:
     """
-    Enhanced notification handler with complete MSTR options strategy integration
+    Enhanced notification handler with complete MSTR options strategy integration and Pi Cycle support
     """
 
     def __init__(self):
@@ -34,13 +34,14 @@ class EnhancedNotificationHandler:
         # Support multiple recipients
         self.recipients = self._parse_recipients()
 
+        # 🎯 ADD THESE LINES after self.recipients = self._parse_recipients()
         test_mode = os.getenv('TEST_MODE', '').lower() in ['true', '1', 'yes']
         if test_mode:
             self.recipients = [self.email_user] if self.email_user else []
             logging.info(f"🧪 TEST MODE: All emails will be sent to {self.email_user} only")
         else:
             logging.info(f"📧 PRODUCTION MODE: Emails will be sent to {len(self.recipients)} recipients")
-        
+
         self.btc_analyzer = BTCAnalyzer()
 
         # Imgur uploader for Gmail compatibility
@@ -81,7 +82,7 @@ class EnhancedNotificationHandler:
         return valid_recipients
 
     def send_daily_report(self, data: Dict, alerts: List[Dict], bitcoin_laws_screenshot: str = "") -> None:
-        """Send enhanced daily Bitcoin + MSTR report with complete options strategy"""
+        """Send enhanced daily Bitcoin + MSTR report with complete options strategy and Pi Cycle"""
         try:
             # Get current date for report
             report_date = datetime.now(timezone.utc).strftime('%B %d, %Y')
@@ -117,7 +118,7 @@ class EnhancedNotificationHandler:
                 self._send_email_to_multiple(subject, body, is_html=True)
                 logging.info(f"✅ Email sent with embedded image")
 
-            logging.info(f'Enhanced Bitcoin + MSTR + Laws report sent to {len(self.recipients)} recipients')
+            logging.info(f'Enhanced Bitcoin + MSTR + Pi Cycle + Laws report sent to {len(self.recipients)} recipients')
 
         except Exception as e:
             logging.error(f'Error sending enhanced report: {str(e)}')
@@ -180,7 +181,7 @@ class EnhancedNotificationHandler:
 
     def _generate_enhanced_report_html_with_url(self, data: Dict, alerts: List[Dict], report_date: str,
                                                 image_url: str) -> str:
-        """Generate HTML report using external image URL (Imgur-friendly)"""
+        """Generate HTML report using external image URL (Imgur-friendly) with Pi Cycle"""
         btc_data = data['assets'].get('BTC', {})
         mstr_data = data['assets'].get('MSTR', {})
 
@@ -209,10 +210,14 @@ class EnhancedNotificationHandler:
                     {self._generate_mstr_section_html(mstr_data)}
                 </div>
 
+                <div class="pi-cycle-section-container">
+                    {self._generate_pi_cycle_section_html(btc_data)}
+                </div>
+
                 <div class="monetary-section-container">
                     {self._generate_monetary_section_html(data.get('monetary', {}))}
                 </div>
-                
+
                 <div class="laws-section-container">
                     {self._generate_bitcoin_laws_section_html_url(image_url)}
                 </div>
@@ -226,7 +231,7 @@ class EnhancedNotificationHandler:
 
     def _generate_enhanced_report_html(self, data: Dict, alerts: List[Dict], report_date: str,
                                        bitcoin_laws_screenshot: str = "") -> str:
-        """Generate enhanced HTML report with embedded images"""
+        """Generate enhanced HTML report with embedded images and Pi Cycle"""
         btc_data = data['assets'].get('BTC', {})
         mstr_data = data['assets'].get('MSTR', {})
 
@@ -254,12 +259,15 @@ class EnhancedNotificationHandler:
                     {self._generate_enhanced_btc_section_html(btc_data)}
                     {self._generate_mstr_section_html(mstr_data)}
                 </div>
-                
-                
+
+                <div class="pi-cycle-section-container">
+                    {self._generate_pi_cycle_section_html(btc_data)}
+                </div>
+
                 <div class="monetary-section-container">
                     {self._generate_monetary_section_html(data.get('monetary', {}))}
                 </div>
-                
+
                 <div class="laws-section-container">
                     {self._generate_bitcoin_laws_section_html(bitcoin_laws_screenshot)}
                 </div>
@@ -270,6 +278,161 @@ class EnhancedNotificationHandler:
         </html>
         """
         return html
+
+    def _generate_pi_cycle_section_html(self, btc_data: Dict) -> str:
+        """
+        🎯 FIXED: Pi Cycle section with CORRECT data access and NO CSS conflicts
+        """
+        try:
+            # 🎯 CRITICAL FIX: Check if Pi Cycle data exists at the right path
+            pi_cycle_data = btc_data.get('pi_cycle', {})
+
+            # Debug logging to see what's happening
+            logging.info(f"🔍 Pi Cycle Debug - btc_data keys: {list(btc_data.keys())}")
+            logging.info(f"🔍 Pi Cycle Debug - pi_cycle_data exists: {bool(pi_cycle_data)}")
+            if pi_cycle_data:
+                logging.info(f"🔍 Pi Cycle Debug - pi_cycle success: {pi_cycle_data.get('success', False)}")
+
+            # Handle missing or failed Pi Cycle data
+            if not pi_cycle_data or not pi_cycle_data.get('success'):
+                error_msg = pi_cycle_data.get('error', 'Unknown error') if pi_cycle_data else 'No data available'
+                logging.warning(f"⚠️ Pi Cycle data unavailable: {error_msg}")
+
+                return f"""
+                <div class="pi-cycle-section">
+                    <div class="pi-cycle-header">
+                        <span class="pi-cycle-symbol">🥧 Pi Cycle Top Indicator</span>
+                        <span style="color: #dc3545;">Data Unavailable</span>
+                    </div>
+                    <div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #ddd;">
+                        <div style="color: #555; font-size: 14px; margin-bottom: 12px; line-height: 1.4;">
+                            ⚠️ Pi Cycle data collection failed: {error_msg}
+                        </div>
+                        <p style="margin: 5px 0; font-size: 12px; color: #666;">
+                            💡 <strong>What is Pi Cycle Top?</strong> The most accurate Bitcoin cycle top predictor (95%+ accuracy within 3 days).
+                            Signals when 111-day moving average crosses above 2× the 350-day moving average.
+                        </p>
+                    </div>
+                </div>
+                """
+
+            # Extract Pi Cycle data safely
+            current_values = pi_cycle_data.get('current_values', {})
+            signal_status = pi_cycle_data.get('signal_status', {})
+            interpretation = pi_cycle_data.get('interpretation', {})
+            trend_analysis = pi_cycle_data.get('trend_analysis', {})
+
+            # Safe extraction with defaults
+            btc_price = current_values.get('btc_price', 0)
+            ma_111 = current_values.get('ma_111', 0)
+            ma_350_x2 = current_values.get('ma_350_x2', 0)
+            gap_absolute = current_values.get('gap_absolute', 0)
+            gap_percentage = current_values.get('gap_percentage', 0)
+
+            proximity_level = signal_status.get('proximity_level', 'UNKNOWN')
+            message = signal_status.get('message', 'Unknown status')
+            description = signal_status.get('description', 'No description available')
+            color = signal_status.get('color', '#6c757d')
+
+            is_converging = trend_analysis.get('is_converging', False)
+            trend_description = trend_analysis.get('trend_description', 'Unknown trend')
+            trend_emoji = "📈" if is_converging else "📉"
+
+            summary = interpretation.get('summary', 'No summary available')
+            action = interpretation.get('action', 'No action specified')
+            timeframe = interpretation.get('timeframe', 'No timeframe specified')
+
+            logging.info(f"✅ Pi Cycle rendering: {proximity_level} ({gap_percentage:.1f}% gap)")
+
+            # 🎯 SIMPLE HTML that uses INLINE STYLES to avoid CSS conflicts
+            return f"""
+            <div class="pi-cycle-section">
+                <div class="pi-cycle-header">
+                    <span class="pi-cycle-symbol">🥧 Pi Cycle Top Indicator</span>
+                    <span style="color: {color}; font-weight: 600;">{proximity_level.replace('_', ' ').title()}</span>
+                </div>
+
+                <div class="pi-cycle-content">
+                    <!-- Signal Status -->
+                    <div style="border-left: 4px solid {color}; background: white; padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="color: {color}; font-weight: 600; font-size: 16px; margin-bottom: 8px;">
+                            {message}
+                        </div>
+                        <div style="color: #555; font-size: 14px;">
+                            {description}
+                        </div>
+                    </div>
+
+                    <!-- Simple 2x2 Grid with inline styles -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px;">
+                        <div style="background: white; border: 1px solid #ddd; border-radius: 6px; padding: 12px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <div style="font-size: 11px; color: #666; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">BTC PRICE</div>
+                            <div style="font-size: 16px; font-weight: 700; color: #333;">${btc_price:,.0f}</div>
+                        </div>
+                        <div style="background: white; border: 1px solid #ddd; border-radius: 6px; padding: 12px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <div style="font-size: 11px; color: #666; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">111-DAY MA</div>
+                            <div style="font-size: 16px; font-weight: 700; color: #333;">${ma_111:,.0f}</div>
+                        </div>
+                        <div style="background: white; border: 1px solid #ddd; border-radius: 6px; padding: 12px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <div style="font-size: 11px; color: #666; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">350-DAY MA × 2</div>
+                            <div style="font-size: 16px; font-weight: 700; color: #333;">${ma_350_x2:,.0f}</div>
+                        </div>
+                        <div style="background: white; border: 1px solid #ddd; border-left: 3px solid {color}; border-radius: 6px; padding: 12px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <div style="font-size: 11px; color: #666; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">GAP REMAINING</div>
+                            <div style="font-size: 16px; font-weight: 700; color: #333;">${gap_absolute:,.0f}</div>
+                            <div style="color: {color}; font-weight: 600; font-size: 12px;">({gap_percentage:.1f}%)</div>
+                        </div>
+                    </div>
+
+                    <!-- Trend -->
+                    <div style="background: white; padding: 12px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #ddd;">
+                        <div style="color: #333; font-size: 14px; font-weight: 600;">
+                            {trend_emoji} <strong>Trend:</strong> {trend_description}
+                        </div>
+                    </div>
+
+                    <!-- Interpretation -->
+                    <div style="background: white; padding: 15px; border-radius: 6px; border: 1px solid #ddd;">
+                        <div style="color: #333; font-size: 14px; font-weight: 600; margin-bottom: 8px;">
+                            📋 <strong>Interpretation:</strong>
+                        </div>
+                        <div style="color: #555; font-size: 13px; line-height: 1.4;">
+                            • <strong>Summary:</strong> {summary}<br>
+                            • <strong>Action:</strong> {action}<br>
+                            • <strong>Timeframe:</strong> {timeframe}
+                        </div>
+                    </div>
+
+                    <!-- Explanation -->
+                    <div style="background: linear-gradient(135deg, #e7f3ff, #cce7ff); border: 1px solid #6f42c1; border-radius: 6px; padding: 12px; margin-top: 15px;">
+                        <div style="color: #495057; font-size: 13px; font-weight: 600; margin-bottom: 6px;">
+                            💡 <strong>How to Read Pi Cycle Top:</strong>
+                        </div>
+                        <div style="color: #666; font-size: 12px; line-height: 1.4;">
+                            The Pi Cycle Top indicator signals Bitcoin cycle tops when the 111-day moving average crosses above 
+                            2× the 350-day moving average. Historically accurate within 3 days of major peaks (2013, 2017, 2021). 
+                            The smaller the gap percentage, the closer to a potential cycle top.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            """
+
+        except Exception as e:
+            logging.error(f"❌ Error generating Pi Cycle HTML: {str(e)}")
+            return f"""
+            <div class="pi-cycle-section">
+                <div class="pi-cycle-header">
+                    <span class="pi-cycle-symbol">🥧 Pi Cycle Top Indicator</span>
+                    <span style="color: #dc3545;">HTML Generation Error</span>
+                </div>
+                <div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #ddd;">
+                    <div style="color: #dc3545; font-size: 14px;">
+                        ⚠️ Error generating Pi Cycle display: {str(e)}
+                    </div>
+                </div>
+            </div>
+            """
 
     def _generate_monetary_section_html(self, monetary_data: Dict) -> str:
         """Generate monetary policy section HTML"""
@@ -296,8 +459,8 @@ class EnhancedNotificationHandler:
         days_old = monetary_data.get('days_old', 0)
         fixed_rates = monetary_data.get('fixed_rates', {})
         table_data = monetary_data.get('table_data', [])
-        true_inflation_rate = monetary_data.get('true_inflation_rate')  # ← FIXED: Now properly accessed
-        m2_20y_growth = monetary_data.get('m2_20y_growth')  # ← FIXED: Now properly accessed
+        true_inflation_rate = monetary_data.get('true_inflation_rate')
+        m2_20y_growth = monetary_data.get('m2_20y_growth')
 
         # Format data freshness
         if days_old == 0:
@@ -327,7 +490,7 @@ class EnhancedNotificationHandler:
             </div>
             """
 
-        # True Inflation box - FIXED: Now properly calculated
+        # True Inflation box
         if true_inflation_rate is not None:
             fixed_rates_html += f"""
             <div class="rate-card">
@@ -345,7 +508,7 @@ class EnhancedNotificationHandler:
             </div>
             """
 
-        # Breakeven ROI box - FIXED: Now properly calculated
+        # Breakeven ROI box
         if true_inflation_rate is not None:
             breakeven_rate = true_inflation_rate / (1 - 0.25)  # Assume 25% tax rate
             fixed_rates_html += f"""
@@ -426,7 +589,7 @@ class EnhancedNotificationHandler:
             </div>
             """
 
-        # ORIGINAL Key Insight (unchanged)
+        # Key Insight
         original_key_insight_html = f"""
         <div style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px; border: 1px solid #dee2e6;">
             <div style="color: #555; font-size: 14px; margin-bottom: 12px; line-height: 1.4;">
@@ -438,7 +601,7 @@ class EnhancedNotificationHandler:
         </div>
         """
 
-        # ADDITIONAL Monetary Reality Insight (new section with enhanced styling)
+        # Monetary Reality Insight
         additional_insight_html = ""
         if true_inflation_rate is not None:
             additional_insight_html = f"""
@@ -452,7 +615,6 @@ class EnhancedNotificationHandler:
             </div>
             """
         else:
-            # Fallback if no true inflation rate calculated
             additional_insight_html = f"""
             <div style="margin-top: 15px; padding: 18px; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 10px; border: 2px solid #6c757d; box-shadow: 0 2px 8px rgba(108, 117, 125, 0.2);">
                 <div style="color: #495057; font-size: 15px; line-height: 1.6; margin-bottom: 12px;">
@@ -506,7 +668,7 @@ class EnhancedNotificationHandler:
         """
 
     def _get_email_css(self) -> str:
-        """Get complete CSS for email styling"""
+        """Get complete CSS for email styling including Pi Cycle styles"""
         return """
             body { 
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
@@ -777,145 +939,185 @@ class EnhancedNotificationHandler:
                     font-size: 24px;
                 }
             }
+
             /* Money Supply Section Styles */
-        .monetary-section-container {
-            grid-column: 1 / -1;
-            margin-top: 20px;
-            padding: 0 25px 25px 25px;
-        }
-
-        .monetary-section {
-            background: #f8f9fa;
-            border: 2px solid #28a745;
-            border-radius: 10px;
-            padding: 25px;
-        }
-
-        .monetary-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 3px solid #28a745;
-        }
-
-        .monetary-symbol {
-            font-size: 24px;
-            font-weight: 700;
-            color: #333;
-        }
-
-        .monetary-date {
-            font-size: 14px;
-            color: #666;
-            font-weight: 500;
-        }
-
-        .fixed-rates-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
-        .rate-card {
-            background: white;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 15px;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .rate-label {
-            font-size: 12px;
-            color: #666;
-            font-weight: 600;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .rate-value {
-            font-size: 20px;
-            font-weight: 700;
-            color: #28a745;
-            margin-bottom: 4px;
-        }
-
-        .rate-description {
-            font-size: 11px;
-            color: #888;
-            font-style: italic;
-        }
-
-        .monetary-table-container {
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .monetary-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }
-
-        .monetary-table th {
-            background: linear-gradient(135deg, #28a745, #20c997);
-            color: white;
-            padding: 12px 8px;
-            text-align: center;
-            font-weight: 600;
-            font-size: 12px;
-            border-right: 1px solid rgba(255,255,255,0.2);
-        }
-
-        .monetary-table th:first-child {
-            text-align: left;
-            padding-left: 15px;
-        }
-
-        .monetary-table td {
-            padding: 10px 8px;
-            text-align: center;
-            border-bottom: 1px solid #f0f0f0;
-            border-right: 1px solid #f0f0f0;
-        }
-
-        .monetary-table td:first-child {
-            text-align: left;
-            padding-left: 15px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .monetary-table tbody tr:hover {
-            background-color: #f8f9fa;
-        }
-
-        .positive-change {
-            color: #dc3545;
-            font-weight: 600;
-        }
-
-        .negative-change {
-            color: #28a745;
-            font-weight: 600;
-        }
-
-        .neutral-change {
-            color: #6c757d;
-            font-weight: 600;
-        }
-
-        @media (max-width: 768px) {
-            .fixed-rates-grid {
-                grid-template-columns: repeat(2, 1fr);
+            .monetary-section-container {
+                grid-column: 1 / -1;
+                margin-top: 20px;
+                padding: 0 25px 25px 25px;
             }
-        }
+
+            .monetary-section {
+                background: #f8f9fa;
+                border: 2px solid #28a745;
+                border-radius: 10px;
+                padding: 25px;
+            }
+
+            .monetary-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 25px;
+                padding-bottom: 15px;
+                border-bottom: 3px solid #28a745;
+            }
+
+            .monetary-symbol {
+                font-size: 24px;
+                font-weight: 700;
+                color: #333;
+            }
+
+            .monetary-date {
+                font-size: 14px;
+                color: #666;
+                font-weight: 500;
+            }
+
+            .fixed-rates-grid {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 15px;
+                margin-bottom: 25px;
+            }
+
+            .rate-card {
+                background: white;
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
+                padding: 15px;
+                text-align: center;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+
+            .rate-label {
+                font-size: 12px;
+                color: #666;
+                font-weight: 600;
+                margin-bottom: 8px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .rate-value {
+                font-size: 20px;
+                font-weight: 700;
+                color: #28a745;
+                margin-bottom: 4px;
+            }
+
+            .rate-description {
+                font-size: 11px;
+                color: #888;
+                font-style: italic;
+            }
+
+            .monetary-table-container {
+                background: white;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+
+            .monetary-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 13px;
+            }
+
+            .monetary-table th {
+                background: linear-gradient(135deg, #28a745, #20c997);
+                color: white;
+                padding: 12px 8px;
+                text-align: center;
+                font-weight: 600;
+                font-size: 12px;
+                border-right: 1px solid rgba(255,255,255,0.2);
+            }
+
+            .monetary-table th:first-child {
+                text-align: left;
+                padding-left: 15px;
+            }
+
+            .monetary-table td {
+                padding: 10px 8px;
+                text-align: center;
+                border-bottom: 1px solid #f0f0f0;
+                border-right: 1px solid #f0f0f0;
+            }
+
+            .monetary-table td:first-child {
+                text-align: left;
+                padding-left: 15px;
+                font-weight: 600;
+                color: #333;
+            }
+
+            .monetary-table tbody tr:hover {
+                background-color: #f8f9fa;
+            }
+
+            .positive-change {
+                color: #dc3545;
+                font-weight: 600;
+            }
+
+            .negative-change {
+                color: #28a745;
+                font-weight: 600;
+            }
+
+            .neutral-change {
+                color: #6c757d;
+                font-weight: 600;
+            }
+
+            @media (max-width: 768px) {
+                .fixed-rates-grid {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+            }
+
+            /* Pi Cycle Section Styles - MINIMAL styles to avoid conflicts */
+            .pi-cycle-section-container {
+                grid-column: 1 / -1;
+                margin-top: 20px;
+                padding: 0 25px 25px 25px;
+            }
+
+            .pi-cycle-section {
+                background: #f8f9fa;
+                border: 2px solid #6f42c1;
+                border-radius: 10px;
+                padding: 20px;
+            }
+
+            .pi-cycle-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+                padding-bottom: 12px;
+                border-bottom: 3px solid #6f42c1;
+            }
+
+            .pi-cycle-symbol {
+                font-size: 20px;
+                font-weight: 700;
+                color: #333;
+            }
+
+            .pi-cycle-content {
+                display: block;
+            }
+
+            @media (max-width: 768px) {
+                .pi-cycle-section-container {
+                    padding: 0 15px 15px 15px;
+                }
+            }
         """
 
     def _generate_enhanced_btc_section_html(self, btc_data: Dict) -> str:
@@ -1115,7 +1317,7 @@ class EnhancedNotificationHandler:
         """
 
     def _generate_mstr_signals_html(self, analysis: Dict) -> str:
-        """🎯 FIXED: Generate MSTR signals HTML INCLUDING options strategy"""
+        """Generate MSTR signals HTML INCLUDING options strategy"""
         if not analysis:
             return ""
 
@@ -1145,7 +1347,7 @@ class EnhancedNotificationHandler:
             </div>
             """
 
-        # 🎯 FIX: ADD OPTIONS STRATEGY HTML GENERATION (This was the missing piece!)
+        # Options Strategy
         options_strategy = analysis.get('options_strategy', {})
         if options_strategy:
             strategy = options_strategy.get('primary_strategy', 'no_preference')
@@ -1339,7 +1541,7 @@ class EnhancedNotificationHandler:
         """
 
     def send_error_notification(self, error_message: str) -> None:
-        """Send error notification to EMAIL_USER only (not all recipients)"""
+        """Send error notification to all recipients"""
         try:
             subject = "⚠️ Market Monitor Error"
             body = f"""
@@ -1349,54 +1551,19 @@ class EnhancedNotificationHandler:
                     <h2 style="color: #721c24;">Market Monitor Error</h2>
                     <p>An error occurred in Dan's market monitoring function:</p>
                     <pre style="background-color: #f4f4f4; padding: 15px; border-radius: 5px; white-space: pre-wrap;">
-    {error_message}
+{error_message}
                     </pre>
                     <p>Please check the Azure Function logs for more details.</p>
-                    <p style="font-size: 12px; color: #666; margin-top: 20px;">
-                        📧 This error notification was sent to administrator only. 
-                        Regular market reports will resume once the issue is resolved.
-                    </p>
                 </div>
             </body>
             </html>
             """
 
-            # 🎯 MINIMAL CHANGE: Send only to EMAIL_USER instead of all recipients
-            self._send_error_email_to_admin_only(subject, body)
-            logging.info(f'Error notification sent to admin only: {self.email_user}')
+            self._send_email_to_multiple(subject, body, is_html=True)
+            logging.info(f'Error notification sent to {len(self.recipients)} recipients')
 
         except Exception as e:
             logging.error(f'Failed to send error notification: {str(e)}')
-
-    # Add this NEW method to your enhanced_notification_handler.py file:
-
-    def _send_error_email_to_admin_only(self, subject: str, body: str) -> None:
-        """Send email to EMAIL_USER only (for error notifications)"""
-        if not all([self.email_user, self.email_password]):
-            logging.warning('Email credentials not configured')
-            return
-
-        try:
-            # Create message
-            msg = MIMEMultipart()
-            msg['From'] = self.email_user
-            msg['Subject'] = subject
-            msg['To'] = self.email_user  # Only send to yourself
-
-            msg.attach(MIMEText(body, 'html'))
-
-            # Send email
-            server = smtplib.SMTP(self.smtp_server, self.smtp_port)
-            server.starttls()
-            server.login(self.email_user, self.email_password)
-            server.send_message(msg, to_addrs=[self.email_user])  # Only to yourself
-            server.quit()
-
-            logging.info(f"Error notification sent successfully to admin: {self.email_user}")
-
-        except Exception as e:
-            logging.error(f"Failed to send error notification to admin: {str(e)}")
-            raise
 
     def _send_email_to_multiple(self, subject: str, body: str, is_html: bool = False) -> None:
         """Send email to multiple recipients efficiently"""
