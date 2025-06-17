@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Enhanced GitHub Actions Market Monitor - Updated with Monetary Analysis Features
-Includes the new True Inflation Rate and Monetary Reality insights
+Enhanced GitHub Actions Market Monitor - FIXED with Pi Cycle Support
+Includes the new True Inflation Rate, Monetary Reality insights, AND Pi Cycle data
 """
 
 import os
@@ -36,11 +36,11 @@ def setup_logging():
 
 def main():
     """
-    Enhanced main function with improved monetary analysis integration
+    Enhanced main function with improved monetary analysis integration AND Pi Cycle support
     """
     setup_logging()
     logging.info('🚀 Enhanced GitHub Actions Market Monitor started at %s', datetime.utcnow())
-    logging.info('✨ Now includes True Inflation Rate and Monetary Reality insights!')
+    logging.info('✨ Now includes True Inflation Rate, Monetary Reality insights AND Pi Cycle data!')
 
     try:
         # Initialize components (enhanced notification handler has our new features)
@@ -49,11 +49,11 @@ def main():
         data_storage = DataStorage()
         monetary_analyzer = MonetaryAnalyzer(storage=data_storage)
 
-        # Define assets to monitor
+        # 🎯 FIXED: Define assets to monitor WITH Pi Cycle support
         assets_config = {
             'BTC': {
                 'type': 'crypto',
-                'sources': ['polygon', 'tradingview_mvrv']
+                'sources': ['polygon', 'tradingview_mvrv', 'pi_cycle']  # 🎯 ADDED pi_cycle
             },
             'MSTR': {
                 'type': 'stock',
@@ -70,6 +70,17 @@ def main():
 
             if asset == 'BTC':
                 asset_data = collector.collect_asset_data(asset, config)
+                
+                # 🎯 NEW: Log Pi Cycle collection status
+                if asset_data.get('success'):
+                    pi_cycle_data = asset_data.get('pi_cycle', {})
+                    if pi_cycle_data and pi_cycle_data.get('success'):
+                        pi_status = pi_cycle_data.get('signal_status', {}).get('proximity_level', 'UNKNOWN')
+                        pi_gap = pi_cycle_data.get('current_values', {}).get('gap_percentage', 0)
+                        logging.info(f"🥧 Pi Cycle Success: {pi_status} ({pi_gap:.1f}% gap)")
+                    else:
+                        logging.warning(f"⚠️ Pi Cycle Warning: {pi_cycle_data.get('error', 'No data') if pi_cycle_data else 'Missing'}")
+                
             elif asset == 'MSTR':
                 btc_price = None
                 if 'BTC' in collected_data and collected_data['BTC'].get('success'):
@@ -120,26 +131,26 @@ def main():
         else:
             logging.warning("⚠️ Bitcoin Laws screenshot failed")
 
-        # Process and analyze data
-        processed_data = process_asset_data(collected_data)
+        # 🎯 FIXED: Process and analyze data with Pi Cycle preservation
+        processed_data = process_asset_data_fixed(collected_data)
         processed_data['monetary'] = monetary_data
 
         # Store data
         logging.info('💾 Storing processed data')
         data_storage.store_daily_data(processed_data)
 
-        # 🎯 ENHANCED: Check if we should send the report (with monetary validation)
-        should_send_report = should_send_daily_report_enhanced(
+        # 🎯 ENHANCED: Check if we should send the report (with monetary validation AND Pi Cycle)
+        should_send_report = should_send_daily_report_enhanced_fixed(
             processed_data, collected_data, bitcoin_laws_screenshot, monetary_data
         )
 
         if should_send_report['send']:
-            logging.info('📧 All components ready - generating enhanced report with monetary insights')
+            logging.info('📧 All components ready - generating enhanced report with monetary insights AND Pi Cycle data')
             
             # Generate alerts
-            alerts = generate_alerts(processed_data, data_storage)
+            alerts = generate_alerts_fixed(processed_data, data_storage)
             
-            # 🎯 ENHANCED: Send report with new monetary features
+            # 🎯 ENHANCED: Send report with new monetary features AND Pi Cycle
             notification_handler.send_daily_report(processed_data, alerts, bitcoin_laws_screenshot)
             
             # Log what enhanced features were included
@@ -149,15 +160,36 @@ def main():
                 logging.info('   📝 Additional "Monetary Reality" insight section')
                 logging.info('   🎯 Bitcoin investment thesis strengthened by monetary debasement data')
             
-            logging.info('✅ Enhanced Market Monitor completed successfully')
+            # 🎯 NEW: Log Pi Cycle inclusion
+            btc_data = collected_data.get('BTC', {})
+            if btc_data.get('success') and btc_data.get('pi_cycle', {}).get('success'):
+                pi_cycle_data = btc_data['pi_cycle']
+                pi_status = pi_cycle_data.get('signal_status', {}).get('proximity_level', 'UNKNOWN')
+                logging.info('🥧 Report includes Pi Cycle analysis:')
+                logging.info(f'   📊 Pi Cycle Status: {pi_status}')
+                logging.info('   🎯 Enhanced market timing insights included')
+            
+            logging.info('✅ Enhanced Market Monitor completed successfully with ALL features')
             return True
         else:
             logging.warning(f'📧 Report not sent: {should_send_report["reason"]}')
             
-            # 🎯 ENHANCED: Include monetary status in error report
+            # 🎯 ENHANCED: Include monetary status AND Pi Cycle status in error report
             monetary_status = "✅ SUCCESS" if monetary_data.get('success') else "❌ FAILED"
             if monetary_data.get('success') and monetary_data.get('true_inflation_rate'):
                 monetary_status += f" (True Inflation: {monetary_data['true_inflation_rate']:.1f}%)"
+            
+            # 🎯 NEW: Pi Cycle status
+            btc_data = collected_data.get('BTC', {})
+            pi_cycle_status = "❌ NOT COLLECTED"
+            if btc_data.get('success'):
+                pi_cycle_data = btc_data.get('pi_cycle', {})
+                if pi_cycle_data and pi_cycle_data.get('success'):
+                    pi_status = pi_cycle_data.get('signal_status', {}).get('proximity_level', 'UNKNOWN')
+                    pi_gap = pi_cycle_data.get('current_values', {}).get('gap_percentage', 0)
+                    pi_cycle_status = f"✅ SUCCESS ({pi_status}, {pi_gap:.1f}% gap)"
+                else:
+                    pi_cycle_status = f"❌ FAILED ({pi_cycle_data.get('error', 'Unknown') if pi_cycle_data else 'Missing'})"
             
             error_message = f"""
 Enhanced GitHub Actions Daily Report - Component Status
@@ -169,10 +201,12 @@ COMPONENT STATUS:
 - MSTR: {'✅ SUCCESS' if collected_data.get('MSTR', {}).get('success') else '❌ FAILED'}  
 - Bitcoin Laws Screenshot: {'✅ SUCCESS' if bitcoin_laws_screenshot else '❌ FAILED'}
 - Monetary Data: {monetary_status}
+- Pi Cycle Data: {pi_cycle_status}
 
 ENHANCED FEATURES STATUS:
 - True Inflation Rate: {'✅ CALCULATED' if monetary_data.get('true_inflation_rate') else '❌ NOT AVAILABLE'}
 - Monetary Reality Insight: {'✅ READY' if monetary_data.get('true_inflation_rate') else '❌ REQUIRES TRUE INFLATION DATA'}
+- Pi Cycle Analysis: {'✅ AVAILABLE' if btc_data.get('success') and btc_data.get('pi_cycle', {}).get('success') else '❌ NOT AVAILABLE'}
 
 DETAILS:
 {should_send_report.get('details', 'No additional details')}
@@ -195,13 +229,13 @@ DETAILS:
 
 
 # =============================================================================
-# ENHANCED FUNCTIONS (Updated to better handle new monetary features)
+# 🎯 FIXED FUNCTIONS (Updated to properly handle Pi Cycle data)
 # =============================================================================
 
-def should_send_daily_report_enhanced(processed_data: Dict, collected_data: Dict,
-                                      bitcoin_laws_screenshot: str = "", monetary_data: Dict = None) -> Dict:
+def should_send_daily_report_enhanced_fixed(processed_data: Dict, collected_data: Dict,
+                                            bitcoin_laws_screenshot: str = "", monetary_data: Dict = None) -> Dict:
     """
-    Enhanced report sending logic with improved monetary data validation
+    🎯 FIXED: Enhanced report sending logic with Pi Cycle data validation
     """
     try:
         # Core component checks (unchanged)
@@ -218,8 +252,8 @@ def should_send_daily_report_enhanced(processed_data: Dict, collected_data: Dict
             m2_growth = monetary_data.get('m2_20y_growth')
             has_enhanced_features = (true_inflation is not None and m2_growth is not None)
 
-        # Validate data quality
-        btc_data_quality = validate_btc_data_quality(processed_data.get('assets', {}).get('BTC', {}))
+        # 🎯 FIXED: Validate data quality with Pi Cycle support
+        btc_data_quality = validate_btc_data_quality_fixed(processed_data.get('assets', {}).get('BTC', {}))
         mstr_data_quality = validate_mstr_data_quality(collected_data.get('MSTR', {}))
 
         # Core components must succeed
@@ -230,25 +264,53 @@ def should_send_daily_report_enhanced(processed_data: Dict, collected_data: Dict
         )
 
         if core_components_ready:
+            # 🎯 NEW: Check Pi Cycle status for enhanced reporting
+            btc_data = collected_data.get('BTC', {})
+            pi_cycle_available = False
+            if btc_data.get('success'):
+                pi_cycle_data = btc_data.get('pi_cycle', {})
+                pi_cycle_available = pi_cycle_data and pi_cycle_data.get('success')
+            
             if monetary_success:
                 if has_enhanced_features:
+                    if pi_cycle_available:
+                        return {
+                            'send': True,
+                            'reason': 'ALL components successful with FULL enhanced features (Monetary + Pi Cycle)',
+                            'details': f'Complete report with True Inflation Rate ({monetary_data["true_inflation_rate"]:.1f}%), Monetary Reality insights, AND Pi Cycle analysis'
+                        }
+                    else:
+                        return {
+                            'send': True,
+                            'reason': 'ALL components successful with enhanced monetary features (Pi Cycle failed but proceeding)',
+                            'details': f'Complete report with True Inflation Rate ({monetary_data["true_inflation_rate"]:.1f}%) and Monetary Reality insights'
+                        }
+                else:
+                    if pi_cycle_available:
+                        return {
+                            'send': True,
+                            'reason': 'ALL components successful with Pi Cycle data (basic monetary)',
+                            'details': 'Monetary data available but enhanced features not calculated, Pi Cycle analysis included'
+                        }
+                    else:
+                        return {
+                            'send': True,
+                            'reason': 'ALL components successful with basic monetary data',
+                            'details': 'Monetary data available but enhanced features (True Inflation) not calculated, Pi Cycle also failed'
+                        }
+            else:
+                if pi_cycle_available:
                     return {
                         'send': True,
-                        'reason': 'ALL components successful with ENHANCED monetary features',
-                        'details': f'Complete report with True Inflation Rate ({monetary_data["true_inflation_rate"]:.1f}%) and Monetary Reality insights'
+                        'reason': 'Core components successful with Pi Cycle (proceeding without monetary data)',
+                        'details': f'Pi Cycle analysis available. Monetary error: {monetary_data.get("error", "Unknown") if monetary_data else "Not attempted"}'
                     }
                 else:
                     return {
                         'send': True,
-                        'reason': 'ALL components successful with basic monetary data',
-                        'details': 'Monetary data available but enhanced features (True Inflation) not calculated'
+                        'reason': 'Core components successful (BTC + MSTR + Bitcoin Laws) - proceeding without monetary/Pi Cycle',
+                        'details': f'Monetary error: {monetary_data.get("error", "Unknown") if monetary_data else "Not attempted"}. Pi Cycle also failed.'
                     }
-            else:
-                return {
-                    'send': True,
-                    'reason': 'Core components successful (BTC + MSTR + Bitcoin Laws) - proceeding without monetary data',
-                    'details': f'Monetary error: {monetary_data.get("error", "Unknown") if monetary_data else "Not attempted"}'
-                }
         else:
             # Determine what failed
             failed_components = []
@@ -281,8 +343,10 @@ def should_send_daily_report_enhanced(processed_data: Dict, collected_data: Dict
         }
 
 
-def validate_btc_data_quality(btc_data: Dict) -> Dict:
-    """Enhanced BTC data quality validation"""
+def validate_btc_data_quality_fixed(btc_data: Dict) -> Dict:
+    """
+    🎯 FIXED: Enhanced BTC data quality validation INCLUDING Pi Cycle
+    """
     issues = []
 
     try:
@@ -318,57 +382,19 @@ def validate_btc_data_quality(btc_data: Dict) -> Dict:
         elif ema_200 < 1000 or ema_200 > 500000:  # Sanity check
             issues.append(f"EMA 200 outside reasonable range: ${ema_200:,.2f}")
 
-        is_valid = len(issues) == 0
-        return {'is_valid': is_valid, 'issues': issues}
-
-    except Exception as e:
-        return {'is_valid': False, 'issues': [f"Validation error: {str(e)}"]}
-
-
-def validate_mstr_data_quality(mstr_data: Dict) -> Dict:
-    """Enhanced MSTR data quality validation"""
-    issues = []
-
-    try:
-        if not mstr_data.get('success'):
-            issues.append(f"Collection failed: {mstr_data.get('error', 'Unknown error')}")
-            return {'is_valid': False, 'issues': issues}
-
-        # Check price
-        price = mstr_data.get('price', 0)
-        if not price or price <= 0:
-            issues.append(f"Invalid price: {price}")
-        elif price < 10 or price > 10000:  # Sanity check for MSTR
-            issues.append(f"MSTR price outside reasonable range: ${price:.2f}")
-
-        # Check indicators
-        indicators = mstr_data.get('indicators', {})
-
-        model_price = indicators.get('model_price', 0)
-        if not model_price or model_price <= 0:
-            issues.append(f"Invalid model price: {model_price}")
-        elif not (1 < model_price < 10000):
-            issues.append(f"Model price outside reasonable range: ${model_price:.2f}")
-
-        deviation_pct = indicators.get('deviation_pct', None)
-        if deviation_pct is None:
-            issues.append("Missing deviation percentage")
-        elif abs(deviation_pct) > 200:  # Sanity check
-            issues.append(f"Deviation percentage seems extreme: {deviation_pct:.1f}%")
-
-        # IV validation - enhanced
-        iv = indicators.get('iv', 0)
-        if iv == 0:
-            issues.append("Missing main IV (Implied Volatility) data")
-        elif iv < 10 or iv > 500:  # Sanity check for IV
-            issues.append(f"IV outside reasonable range: {iv:.1f}%")
-
-        # 🎯 NEW: Check for options strategy analysis
-        analysis = mstr_data.get('analysis', {})
-        if analysis and 'options_strategy' in analysis:
-            strategy = analysis['options_strategy']
-            if not strategy.get('primary_strategy'):
-                issues.append("Options strategy analysis incomplete")
+        # 🎯 NEW: Validate Pi Cycle data (but don't require it for core validation)
+        pi_cycle_data = btc_data.get('pi_cycle', {})
+        if pi_cycle_data:
+            if not pi_cycle_data.get('success'):
+                # Pi Cycle failed, but don't fail the whole validation
+                logging.warning(f"⚠️ Pi Cycle validation: {pi_cycle_data.get('error', 'Unknown error')}")
+            else:
+                # Pi Cycle succeeded, validate basic structure
+                current_values = pi_cycle_data.get('current_values', {})
+                if not current_values.get('gap_percentage'):
+                    logging.warning("⚠️ Pi Cycle missing gap percentage")
+                else:
+                    logging.info(f"✅ Pi Cycle validation: {current_values.get('gap_percentage', 0):.1f}% gap")
 
         is_valid = len(issues) == 0
         return {'is_valid': is_valid, 'issues': issues}
@@ -377,8 +403,10 @@ def validate_mstr_data_quality(mstr_data: Dict) -> Dict:
         return {'is_valid': False, 'issues': [f"Validation error: {str(e)}"]}
 
 
-def process_asset_data(collected_data: Dict) -> Dict:
-    """Enhanced asset data processing"""
+def process_asset_data_fixed(collected_data: Dict) -> Dict:
+    """
+    🎯 FIXED: Enhanced asset data processing with PROPER Pi Cycle preservation
+    """
     processed = {
         'timestamp': datetime.utcnow().isoformat(),
         'assets': {},
@@ -386,7 +414,8 @@ def process_asset_data(collected_data: Dict) -> Dict:
             'total_assets': len(collected_data),
             'successful_collections': 0,
             'failed_collections': 0,
-            'enhanced_features_available': False  # Track if enhanced features are working
+            'enhanced_features_available': False,  # Track if enhanced features are working
+            'pi_cycle_available': False  # 🎯 NEW: Track Pi Cycle availability
         }
     }
 
@@ -395,14 +424,28 @@ def process_asset_data(collected_data: Dict) -> Dict:
             processed['summary']['successful_collections'] += 1
 
             if asset == 'BTC':
-                processed['assets'][asset] = {
+                # 🎯 CRITICAL FIX: Only include Pi Cycle if it actually has data
+                btc_asset_data = {
                     'type': data.get('type', 'crypto'),
                     'price': data.get('price', 0),
                     'indicators': data.get('indicators', {}),
                     'metadata': data.get('metadata', {}),
                     'last_updated': data.get('timestamp'),
-                    'pi_cycle': data.get('pi_cycle', {})
+                    'price_source': data.get('price_source', 'unknown'),
+                    'price_note': data.get('price_note', '')
                 }
+
+                # 🎯 NEW: Only add pi_cycle if it exists AND has success=True
+                pi_cycle_data = data.get('pi_cycle')
+                if pi_cycle_data and pi_cycle_data.get('success'):
+                    btc_asset_data['pi_cycle'] = pi_cycle_data
+                    processed['summary']['pi_cycle_available'] = True
+                    logging.info(f"✅ Pi Cycle preserved in processing: {pi_cycle_data.get('signal_status', {}).get('proximity_level', 'UNKNOWN')}")
+                else:
+                    logging.warning(f"⚠️ Pi Cycle not preserved - data: {bool(pi_cycle_data)}, success: {pi_cycle_data.get('success') if pi_cycle_data else False}")
+
+                processed['assets'][asset] = btc_asset_data
+
             elif asset == 'MSTR':
                 analysis = data.get('analysis', {})
                 # 🎯 ENHANCED: Track if options strategy is available
@@ -440,8 +483,10 @@ def process_asset_data(collected_data: Dict) -> Dict:
     return processed
 
 
-def generate_alerts(data: Dict, storage: DataStorage) -> List[Dict]:
-    """Enhanced alert generation with monetary features"""
+def generate_alerts_fixed(data: Dict, storage: DataStorage) -> List[Dict]:
+    """
+    🎯 FIXED: Enhanced alert generation with monetary features AND Pi Cycle
+    """
     alerts = []
 
     # 🎯 ENHANCED: Check for monetary data alerts
@@ -469,15 +514,17 @@ def generate_alerts(data: Dict, storage: DataStorage) -> List[Dict]:
 
         # Asset-specific alert logic
         if asset == 'BTC':
-            alerts.extend(generate_btc_alerts(asset_data, storage))
+            alerts.extend(generate_btc_alerts_fixed(asset_data, storage))
         elif asset == 'MSTR':
             alerts.extend(generate_mstr_alerts(asset_data, storage))
 
     return alerts
 
 
-def generate_btc_alerts(btc_data: Dict, storage: DataStorage) -> List[Dict]:
-    """Enhanced Bitcoin-specific alerts"""
+def generate_btc_alerts_fixed(btc_data: Dict, storage: DataStorage) -> List[Dict]:
+    """
+    🎯 FIXED: Enhanced Bitcoin-specific alerts INCLUDING Pi Cycle
+    """
     alerts = []
     indicators = btc_data.get('indicators', {})
 
@@ -517,11 +564,41 @@ def generate_btc_alerts(btc_data: Dict, storage: DataStorage) -> List[Dict]:
                 'severity': 'medium'
             })
 
+    # 🎯 NEW: Pi Cycle alerts
+    pi_cycle_data = btc_data.get('pi_cycle', {})
+    if pi_cycle_data and pi_cycle_data.get('success'):
+        signal_status = pi_cycle_data.get('signal_status', {})
+        proximity_level = signal_status.get('proximity_level', 'UNKNOWN')
+        current_values = pi_cycle_data.get('current_values', {})
+        gap_percentage = current_values.get('gap_percentage', 0)
+        
+        if proximity_level == 'CRITICAL':
+            alerts.append({
+                'type': 'pi_cycle_critical',
+                'asset': 'BTC',
+                'message': f"Pi Cycle CRITICAL: Lines very close ({gap_percentage:.1f}% gap) - potential cycle top near",
+                'severity': 'high'
+            })
+        elif proximity_level == 'WARNING':
+            alerts.append({
+                'type': 'pi_cycle_warning',
+                'asset': 'BTC',
+                'message': f"Pi Cycle WARNING: Lines approaching ({gap_percentage:.1f}% gap) - monitor closely",
+                'severity': 'medium'
+            })
+        elif proximity_level == 'WATCH':
+            alerts.append({
+                'type': 'pi_cycle_watch',
+                'asset': 'BTC',
+                'message': f"Pi Cycle WATCH: Lines getting closer ({gap_percentage:.1f}% gap) - early signal",
+                'severity': 'low'
+            })
+
     return alerts
 
 
 def generate_mstr_alerts(mstr_data: Dict, storage: DataStorage) -> List[Dict]:
-    """Enhanced MSTR-specific alerts with options strategy insights"""
+    """Enhanced MSTR-specific alerts with options strategy insights (unchanged from previous version)"""
     alerts = []
     indicators = mstr_data.get('indicators', {})
     analysis = mstr_data.get('analysis', {})
@@ -579,6 +656,59 @@ def generate_mstr_alerts(mstr_data: Dict, storage: DataStorage) -> List[Dict]:
         })
 
     return alerts
+
+
+# Keep the existing validate_mstr_data_quality function unchanged
+def validate_mstr_data_quality(mstr_data: Dict) -> Dict:
+    """Enhanced MSTR data quality validation (unchanged)"""
+    issues = []
+
+    try:
+        if not mstr_data.get('success'):
+            issues.append(f"Collection failed: {mstr_data.get('error', 'Unknown error')}")
+            return {'is_valid': False, 'issues': issues}
+
+        # Check price
+        price = mstr_data.get('price', 0)
+        if not price or price <= 0:
+            issues.append(f"Invalid price: {price}")
+        elif price < 10 or price > 10000:  # Sanity check for MSTR
+            issues.append(f"MSTR price outside reasonable range: ${price:.2f}")
+
+        # Check indicators
+        indicators = mstr_data.get('indicators', {})
+
+        model_price = indicators.get('model_price', 0)
+        if not model_price or model_price <= 0:
+            issues.append(f"Invalid model price: {model_price}")
+        elif not (1 < model_price < 10000):
+            issues.append(f"Model price outside reasonable range: ${model_price:.2f}")
+
+        deviation_pct = indicators.get('deviation_pct', None)
+        if deviation_pct is None:
+            issues.append("Missing deviation percentage")
+        elif abs(deviation_pct) > 200:  # Sanity check
+            issues.append(f"Deviation percentage seems extreme: {deviation_pct:.1f}%")
+
+        # IV validation - enhanced
+        iv = indicators.get('iv', 0)
+        if iv == 0:
+            issues.append("Missing main IV (Implied Volatility) data")
+        elif iv < 10 or iv > 500:  # Sanity check for IV
+            issues.append(f"IV outside reasonable range: {iv:.1f}%")
+
+        # 🎯 NEW: Check for options strategy analysis
+        analysis = mstr_data.get('analysis', {})
+        if analysis and 'options_strategy' in analysis:
+            strategy = analysis['options_strategy']
+            if not strategy.get('primary_strategy'):
+                issues.append("Options strategy analysis incomplete")
+
+        is_valid = len(issues) == 0
+        return {'is_valid': is_valid, 'issues': issues}
+
+    except Exception as e:
+        return {'is_valid': False, 'issues': [f"Validation error: {str(e)}"]}
 
 
 if __name__ == "__main__":
