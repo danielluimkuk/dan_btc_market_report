@@ -1,5 +1,5 @@
 # =============================================================================
-# Enhanced mstr_analyzer.py - WITH RETRY MECHANISM FOR RELIABILITY
+# Enhanced mstr_analyzer.py - WITH RETRY MECHANISM + NEW SCRAPERS INTEGRATION
 # =============================================================================
 
 import requests
@@ -18,6 +18,10 @@ from fake_useragent import UserAgent
 import logging
 from typing import Dict, Optional
 from datetime import datetime, timezone
+
+# 🎯 NEW: Import the new scrapers
+from mstr_rank_data import get_mstr_rank
+from mNAV_debt_scraper import get_mstr_metrics
 
 # Fix Windows console encoding for Unicode characters
 if os.name == 'nt':  # Windows
@@ -682,6 +686,28 @@ def _validate_mstr_data(data: Dict) -> bool:
             logging.warning("Missing main IV (Implied Volatility) data")
             return False
 
+        # 🎯 NEW: Basic validation for new metrics (simple checks)
+        rank = indicators.get('rank', 'N/A')
+        if rank != 'N/A' and (not isinstance(rank, (int, float)) or not (1 <= rank <= 500)):
+            logging.warning(f"Invalid rank: {rank}")
+            # Don't fail validation for rank issues
+
+        mnav = indicators.get('mnav', 'N/A')
+        if mnav != 'N/A' and (not isinstance(mnav, (int, float)) or not (0.1 <= mnav <= 20)):
+            logging.warning(f"Invalid mNAV: {mnav}")
+            # Don't fail validation for mnav issues
+
+        debt_ratio = indicators.get('debt_ratio', 'N/A')
+        if debt_ratio != 'N/A' and (not isinstance(debt_ratio, (int, float)) or not (0 <= debt_ratio <= 150)):
+            logging.warning(f"Invalid debt ratio: {debt_ratio}")
+            # Don't fail validation for debt ratio issues
+
+        bitcoin_count = indicators.get('bitcoin_count', 'N/A')
+        if bitcoin_count != 'N/A' and (
+                not isinstance(bitcoin_count, (int, float)) or not (100000 <= bitcoin_count <= 3000000)):
+            logging.warning(f"Invalid bitcoin count: {bitcoin_count}")
+            # Don't fail validation for bitcoin count issues
+
         logging.info(
             f"✅ MSTR data validation passed: Price=${price:.2f}, Model=${model_price:.2f}, Dev={deviation_pct:.1f}%, IV={iv:.1f}%")
         if iv_percentile == 0 and iv_rank == 0:
@@ -747,16 +773,16 @@ def collect_mstr_data_with_retry(btc_price: float, max_attempts: int = 3) -> Dic
     }
 
 
-# Original function for backwards compatibility
+# 🎯 NEW: Enhanced collection function with new scrapers integration
 def collect_mstr_data(btc_price: float) -> Dict:
     """
-    Original function to collect MSTR data for integration (unchanged)
+    🎯 ENHANCED: Original function to collect MSTR data + NEW SCRAPERS INTEGRATION
 
     Args:
         btc_price: Current BTC price
 
     Returns:
-        Dict in format compatible with existing collector
+        Dict in format compatible with existing collector + new metrics
     """
     try:
         analyzer = MSTRAnalyzer()
@@ -767,7 +793,8 @@ def collect_mstr_data(btc_price: float) -> Dict:
             volatility = result.get('volatility_data', {})
             analysis = result.get('analysis', {})
 
-            return {
+            # Core MSTR data structure
+            mstr_data = {
                 'success': True,
                 'type': 'stock',
                 'timestamp': result['timestamp'],
@@ -786,6 +813,67 @@ def collect_mstr_data(btc_price: float) -> Dict:
                 },
                 'analysis': analysis  # ← Now includes improved options logic
             }
+
+            # 🎯 NEW: Add new scrapers data ONLY when main collection succeeds
+            logging.info("🎯 Main MSTR collection successful - calling new scrapers...")
+
+            # Scraper 1: Rank data
+            logging.info("📊 Collecting MSTR rank data...")
+            try:
+                rank_result = get_mstr_rank(max_attempts=2)
+                if rank_result.get('success'):
+                    mstr_data['indicators']['rank'] = rank_result.get('rank', 'N/A')
+                    logging.info(f"✅ MSTR rank collected: #{rank_result.get('rank')}")
+                else:
+                    mstr_data['indicators']['rank'] = 'N/A'
+                    logging.warning(f"⚠️ MSTR rank collection failed: {rank_result.get('error', 'Unknown')}")
+            except Exception as e:
+                mstr_data['indicators']['rank'] = 'N/A'
+                logging.warning(f"⚠️ MSTR rank scraper error: {str(e)}")
+
+            # Scraper 2: Metrics data (back-to-back, different sites)
+            logging.info("📈 Collecting MSTR metrics data...")
+            try:
+                metrics_result = get_mstr_metrics(max_attempts=2)
+                if metrics_result.get('success'):
+                    metrics = metrics_result.get('metrics', {})
+                    mstr_data['indicators']['mnav'] = metrics.get('mnav', 'N/A')
+                    mstr_data['indicators']['debt_ratio'] = metrics.get('debt_ratio', 'N/A')
+                    mstr_data['indicators']['bitcoin_count'] = metrics.get('bitcoin_count', 'N/A')
+
+                    logging.info(f"✅ MSTR metrics collected:")
+                    logging.info(f"   mNAV: {metrics.get('mnav', 'N/A')}")
+                    logging.info(f"   Debt Ratio: {metrics.get('debt_ratio', 'N/A')}%")
+                    logging.info(f"   Bitcoin Count: {metrics.get('bitcoin_count', 'N/A')}")
+                else:
+                    mstr_data['indicators']['mnav'] = 'N/A'
+                    mstr_data['indicators']['debt_ratio'] = 'N/A'
+                    mstr_data['indicators']['bitcoin_count'] = 'N/A'
+                    logging.warning(f"⚠️ MSTR metrics collection failed: {metrics_result.get('error', 'Unknown')}")
+            except Exception as e:
+                mstr_data['indicators']['mnav'] = 'N/A'
+                mstr_data['indicators']['debt_ratio'] = 'N/A'
+                mstr_data['indicators']['bitcoin_count'] = 'N/A'
+                logging.warning(f"⚠️ MSTR metrics scraper error: {str(e)}")
+
+            # 🎯 NEW: Calculate BTC Stress Price
+            logging.info("💥 Calculating BTC stress price...")
+            try:
+                debt_ratio = mstr_data['indicators']['debt_ratio']
+                if debt_ratio != 'N/A' and isinstance(debt_ratio, (int, float)):
+                    btc_stress_price = btc_price * (debt_ratio / 100)
+                    mstr_data['indicators']['btc_stress_price'] = round(btc_stress_price, 2)
+                    logging.info(
+                        f"✅ BTC stress price calculated: ${btc_stress_price:,.2f} (BTC ${btc_price:,.0f} × {debt_ratio:.1f}%)")
+                else:
+                    mstr_data['indicators']['btc_stress_price'] = 'N/A'
+                    logging.warning(f"⚠️ Cannot calculate BTC stress price - debt ratio unavailable: {debt_ratio}")
+            except Exception as e:
+                mstr_data['indicators']['btc_stress_price'] = 'N/A'
+                logging.warning(f"⚠️ BTC stress price calculation error: {str(e)}")
+
+            return mstr_data
+
         else:
             return {
                 'success': False,
@@ -809,7 +897,7 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-    print("🧪 Testing Enhanced MSTR Analyzer with Retry Mechanism...")
+    print("🧪 Testing Enhanced MSTR Analyzer with NEW SCRAPERS...")
     print("=" * 70)
 
     # Test with retry mechanism
@@ -825,42 +913,26 @@ if __name__ == "__main__":
         print(f"   IV Rank: {indicators.get('iv_rank', 0):.1f}%")
         print(f"   IV Percentile: {indicators.get('iv_percentile', 0):.1f}%")
 
+        # 🎯 NEW: Show new metrics
+        print(f"\n🎯 NEW METRICS:")
+        print(f"   Rank: {indicators.get('rank', 'N/A')}")
+        print(f"   mNAV: {indicators.get('mnav', 'N/A')}")
+        print(f"   Debt Ratio: {indicators.get('debt_ratio', 'N/A')}%")
+        print(f"   Bitcoin Count: {indicators.get('bitcoin_count', 'N/A')}")
+        print(f"   BTC Stress Price: ${indicators.get('btc_stress_price', 'N/A')}")
+
         analysis = result.get('analysis', {})
         price_signal = analysis.get('price_signal', {})
         options_strategy = analysis.get('options_strategy', {})
 
+        print(f"\n📊 ANALYSIS:")
         print(f"   Price Signal: {price_signal.get('signal', 'N/A')}")
         print(f"   Options Strategy: {options_strategy.get('message', 'N/A')}")
         print(f"   Strategy Reasoning: {options_strategy.get('reasoning', 'N/A')}")
-
-        # 🎯 Test edge case: IV=53%, Rank=0%, Percentile=0%
-        print(f"\n🧪 Testing edge case (IV=53%, Rank=0%, Percentile=0%)...")
-        test_data = {
-            'success': True,
-            'price': 425.67,
-            'indicators': {
-                'model_price': 398.12,
-                'deviation_pct': 6.9,
-                'iv': 53.0,
-                'iv_percentile': 0.0,
-                'iv_rank': 0.0
-            }
-        }
-
-        is_valid = _validate_mstr_data(test_data)
-        print(f"   Validation result: {'✅ VALID' if is_valid else '❌ INVALID'}")
-
-        if is_valid:
-            print(f"   ✅ Options strategy SHOULD be generated with this data!")
-            print(f"   📊 IV Analysis: Percentile=0% & Rank=0% < 30% = 🟢 LOW IV = Cheap Options")
-            print(f"   📈 Direction: {test_data['indicators']['deviation_pct']:+.1f}% vs model = Neutral (fair valued)")
-            print(f"   🎯 Expected Strategy: Long Straddle (low IV + neutral direction)")
-        else:
-            print(f"   ❌ Options strategy will NOT be generated - this is the bug!")
 
     else:
         print(f"❌ FAILED: {result.get('error', 'Unknown')}")
         if 'attempts_made' in result:
             print(f"   Attempts made: {result['attempts_made']}")
 
-    print("\n🎯 Enhanced retry mechanism test complete!")
+    print("\n🎯 Enhanced MSTR analyzer with new scrapers test complete!")

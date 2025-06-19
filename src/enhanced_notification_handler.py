@@ -22,7 +22,7 @@ except ImportError:
 
 class EnhancedNotificationHandler:
     """
-    Enhanced notification handler with complete MSTR options strategy integration and Pi Cycle support
+    Enhanced notification handler with complete MSTR options strategy integration + Pi Cycle + NEW MSTR METRICS
     """
 
     def __init__(self):
@@ -33,7 +33,7 @@ class EnhancedNotificationHandler:
 
         # Support multiple recipients
         self.recipients = self._parse_recipients()
-        #test mode for test email to admin
+        # test mode for test email to admin
         test_mode = os.getenv('TEST_MODE', '').lower() in ['true', '1', 'yes']
         if test_mode:
             self.recipients = [self.email_user] if self.email_user else []
@@ -81,7 +81,7 @@ class EnhancedNotificationHandler:
         return valid_recipients
 
     def send_daily_report(self, data: Dict, alerts: List[Dict], bitcoin_laws_screenshot: str = "") -> None:
-        """Send enhanced daily Bitcoin + MSTR report with complete options strategy and Pi Cycle"""
+        """Send enhanced daily Bitcoin + MSTR report with complete options strategy and Pi Cycle + NEW METRICS"""
         try:
             # Get current date for report
             report_date = datetime.now(timezone.utc).strftime('%B %d, %Y')
@@ -117,7 +117,8 @@ class EnhancedNotificationHandler:
                 self._send_email_to_multiple(subject, body, is_html=True)
                 logging.info(f"✅ Email sent with embedded image")
 
-            logging.info(f'Enhanced Bitcoin + MSTR + Pi Cycle + Laws report sent to {len(self.recipients)} recipients')
+            logging.info(
+                f'Enhanced Bitcoin + MSTR + Pi Cycle + Laws + NEW METRICS report sent to {len(self.recipients)} recipients')
 
         except Exception as e:
             logging.error(f'Error sending enhanced report: {str(e)}')
@@ -180,7 +181,7 @@ class EnhancedNotificationHandler:
 
     def _generate_enhanced_report_html_with_url(self, data: Dict, alerts: List[Dict], report_date: str,
                                                 image_url: str) -> str:
-        """Generate HTML report using external image URL (Imgur-friendly) with Pi Cycle"""
+        """Generate HTML report using external image URL (Imgur-friendly) with Pi Cycle + NEW METRICS"""
         btc_data = data['assets'].get('BTC', {})
         mstr_data = data['assets'].get('MSTR', {})
 
@@ -206,7 +207,7 @@ class EnhancedNotificationHandler:
 
                 <div class="assets-grid">
                     {self._generate_enhanced_btc_section_html(btc_data)}
-                    {self._generate_mstr_section_html(mstr_data)}
+                    {self._generate_enhanced_mstr_section_html(mstr_data)}
                 </div>
 
                 <div class="pi-cycle-section-container">
@@ -230,7 +231,7 @@ class EnhancedNotificationHandler:
 
     def _generate_enhanced_report_html(self, data: Dict, alerts: List[Dict], report_date: str,
                                        bitcoin_laws_screenshot: str = "") -> str:
-        """Generate enhanced HTML report with embedded images and Pi Cycle"""
+        """Generate enhanced HTML report with embedded images and Pi Cycle + NEW METRICS"""
         btc_data = data['assets'].get('BTC', {})
         mstr_data = data['assets'].get('MSTR', {})
 
@@ -256,7 +257,7 @@ class EnhancedNotificationHandler:
 
                 <div class="assets-grid">
                     {self._generate_enhanced_btc_section_html(btc_data)}
-                    {self._generate_mstr_section_html(mstr_data)}
+                    {self._generate_enhanced_mstr_section_html(mstr_data)}
                 </div>
 
                 <div class="pi-cycle-section-container">
@@ -1219,8 +1220,8 @@ class EnhancedNotificationHandler:
         </div>
         """
 
-    def _generate_mstr_section_html(self, mstr_data: Dict) -> str:
-        """Generate complete MSTR section with options strategy"""
+    def _generate_enhanced_mstr_section_html(self, mstr_data: Dict) -> str:
+        """🎯 ENHANCED: Generate complete MSTR section with NEW METRICS + options strategy"""
         if 'error' in mstr_data:
             return f"""
             <div class="asset-section mstr-section">
@@ -1271,26 +1272,36 @@ class EnhancedNotificationHandler:
 
             <div class="indicators">
                 <h3>📈 MSTR Indicators</h3>
-                {self._generate_mstr_indicators_html(indicators)}
+                {self._generate_enhanced_mstr_indicators_html(indicators)}
             </div>
 
             {self._generate_mstr_signals_html(analysis)}
 
-            <div style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
-                <p style="margin: 0; font-size: 13px;">📊 <a href="https://microstrategist.com/ballistic.html" target="_blank" style="color: #ff6b35; text-decoration: none; font-weight: 600;">
-                    View MSTR Ballistic Model on MicroStrategist.com
-                </a></p>
-            </div>
+            {self._generate_mstr_footnotes_html()}
         </div>
         """
 
-    def _generate_mstr_indicators_html(self, indicators: Dict) -> str:
-        """Generate MSTR indicators section HTML"""
+    def _generate_enhanced_mstr_indicators_html(self, indicators: Dict) -> str:
+        """🎯 ENHANCED: Generate MSTR indicators section HTML with NEW METRICS"""
         model_price = indicators.get('model_price', 0)
         deviation_pct = indicators.get('deviation_pct', 0)
         iv = indicators.get('iv', 0)
         iv_percentile = indicators.get('iv_percentile', 0)
         iv_rank = indicators.get('iv_rank', 0)
+
+        # 🎯 NEW: Extract new metrics
+        rank = indicators.get('rank', 'N/A')
+        mnav = indicators.get('mnav', 'N/A')
+        debt_ratio = indicators.get('debt_ratio', 'N/A')
+        bitcoin_count = indicators.get('bitcoin_count', 'N/A')
+        btc_stress_price = indicators.get('btc_stress_price', 'N/A')
+
+        # 🎯 NEW: Format display values
+        rank_display = f"Rank {rank}" if rank != 'N/A' else "N/A"
+        mnav_display = f"mNAV {mnav}" if mnav != 'N/A' else "N/A"
+        debt_display = f"Debt {debt_ratio:.1f}%" if debt_ratio != 'N/A' else "N/A"
+        bitcoin_display = f"{bitcoin_count:,.0f} BTC" if bitcoin_count != 'N/A' else "N/A BTC"
+        stress_display = f"${btc_stress_price:,.0f}" if btc_stress_price != 'N/A' else "N/A"
 
         return f"""
         <div class="indicator">
@@ -1300,6 +1311,26 @@ class EnhancedNotificationHandler:
         <div class="indicator">
             <span>Deviation:</span>
             <span class="indicator-value">{deviation_pct:+.1f}%</span>
+        </div>
+        <div class="indicator">
+            <span>Market Cap Rank:</span>
+            <span class="indicator-value">{rank_display}</span>
+        </div>
+        <div class="indicator">
+            <span>mNAV Ratio:</span>
+            <span class="indicator-value">{mnav_display}</span>
+        </div>
+        <div class="indicator">
+            <span>Debt Ratio:</span>
+            <span class="indicator-value">{debt_display}</span>
+        </div>
+        <div class="indicator">
+            <span>BTC Stress Price:</span>
+            <span class="indicator-value">{stress_display}</span>
+        </div>
+        <div class="indicator">
+            <span>Bitcoin Holdings:</span>
+            <span class="indicator-value">{bitcoin_display}</span>
         </div>
         <div class="indicator">
             <span>Implied Volatility:</span>
@@ -1396,6 +1427,27 @@ class EnhancedNotificationHandler:
             """
 
         return html
+
+    def _generate_mstr_footnotes_html(self) -> str:
+        """🎯 NEW: Generate MSTR footnotes explaining new metrics"""
+        return f"""
+        <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+            <div style="font-size: 12px; color: #666; line-height: 1.4;">
+                <strong>📊 Metric Explanations:</strong><br>
+                • <strong>BTC Stress Price:</strong> The Bitcoin price level that would create significant stress for MSTR based on debt ratio<br>
+                • <strong>mNAV:</strong> Market NAV (Net Asset Value) ratio - MSTR's market value vs Bitcoin holdings value<br>
+                • <strong>Debt Ratio:</strong> Total debt + preferred stock divided by Bitcoin NAV
+            </div>
+            <p style="margin: 10px 0 0 0; font-size: 11px; color: #666;">
+                📊 <a href="https://microstrategist.com/ballistic.html" target="_blank" style="color: #ff6b35; text-decoration: none; font-weight: 600;">
+                    View MSTR Ballistic Model
+                </a> | 
+                <a href="https://www.strategy.com/" target="_blank" style="color: #ff6b35; text-decoration: none; font-weight: 600;">
+                    Strategy.com Metrics
+                </a>
+            </p>
+        </div>
+        """
 
     def _generate_bitcoin_laws_section_html_url(self, image_url: str) -> str:
         """Generate Bitcoin Laws section HTML with external image URL"""
