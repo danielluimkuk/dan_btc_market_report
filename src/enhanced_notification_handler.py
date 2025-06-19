@@ -1297,9 +1297,9 @@ class EnhancedNotificationHandler:
         btc_stress_price = indicators.get('btc_stress_price', 'N/A')
 
         # 🎯 NEW: Format display values
-        rank_display = f"Rank {rank}" if rank != 'N/A' else "Rank N/A"
-        mnav_display = f"mNAV {mnav}" if mnav != 'N/A' else "mNAV N/A"
-        debt_display = f"Debt {debt_ratio:.1f}%" if debt_ratio != 'N/A' else "Debt N/A"
+        rank_display = f"Rank {rank}" if rank != 'N/A' else "N/A"
+        mnav_display = f"mNAV {mnav}" if mnav != 'N/A' else "N/A"
+        debt_display = f"Debt {debt_ratio:.1f}%" if debt_ratio != 'N/A' else "N/A"
         bitcoin_display = f"{bitcoin_count:,.0f} BTC" if bitcoin_count != 'N/A' else "N/A BTC"
         stress_display = f"${btc_stress_price:,.0f}" if btc_stress_price != 'N/A' else "N/A"
 
