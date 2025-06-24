@@ -210,6 +210,22 @@ def sample_monetary_data():
 # =============================================================================
 
 @pytest.fixture(autouse=True)
+def mock_azure_completely():
+    """Completely mock Azure to prevent connection/padding errors"""
+    with patch('azure.cosmosdb.table.TableService') as mock_table_service:
+        mock_service = Mock()
+        mock_service.create_table = Mock()
+        mock_service.insert_or_replace_entity = Mock()
+        mock_service.insert_entity = Mock()
+        mock_service.query_entities = Mock(return_value=[])
+        mock_service.delete_entity = Mock()
+        mock_table_service.return_value = mock_service
+        
+        with patch('azure.cosmosdb.table.models.Entity', Mock):
+            with patch('azure.cosmosdb.table.models.AzureException', Exception):
+                yield
+
+@pytest.fixture(autouse=True)
 def mock_environment():
     """Automatically mock environment variables for all tests"""
     env_vars = {
