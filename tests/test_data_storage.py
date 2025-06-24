@@ -83,14 +83,18 @@ class TestDataStorageInitialization:
 
     def test_initialization_partial_credentials(self):
         """Test initialization with only account name"""
-        with patch.dict(os.environ, {'AZURE_STORAGE_ACCOUNT': 'test_account'}):
-            storage = DataStorage()
+        # FIXED: Use clear=True to prevent environment variable leakage
+        test_env = {'AZURE_STORAGE_ACCOUNT': 'test_account'}
+    
+        with patch.dict(os.environ, test_env, clear=True):
+            with patch('data_storage.TableService'):  # Prevent Azure calls
+                storage = DataStorage()
 
-            assert storage.account_name == 'test_account'
-            assert storage.account_key is None
-            assert storage.table_service is None
+                assert storage.account_name == 'test_account'
+                assert storage.account_key is None
+                assert storage.table_service is None
 
-    @patch('data_storage.TableService')
+        @patch('data_storage.TableService')
     def test_ensure_tables_exist_success(self, mock_table_service, mock_azure_credentials):
         """Test successful table creation"""
         with patch.dict(os.environ, mock_azure_credentials):
