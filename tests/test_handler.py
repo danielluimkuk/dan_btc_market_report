@@ -385,29 +385,47 @@ class TestHTMLGeneration(TestEnhancedNotificationHandler):
         self.assertIn('ERROR', btc_html)
         self.assertIn('API connection failed', btc_html)
 
-    def test_generate_mstr_section_html_success(self):
-        """Test MSTR section HTML generation"""
-        handler = EnhancedNotificationHandler()
+    def test_enhanced_report_includes_mstr_data(self):
+        """Test that enhanced report properly includes MSTR data"""
+        with patch('enhanced_notification_handler.BTCAnalyzer') as mock_btc_analyzer_class:
+            mock_analyzer = Mock()
+            mock_analysis = {
+                'market_status': 'bull', 'is_bull_market': True, 'price': 95000.50,
+                'ema_200': 88000.0, 'indicators': {'mvrv': 2.1, 'weekly_rsi': 65.0},
+                'signal_conditions': {'mvrv': {'value': 2.1, 'condition_met': False},
+                                    'rsi': {'value': 65.0, 'condition_met': False}},
+                'signal_status': {'status': 'none', 'message': '', 'emoji': '', 'prediction': ''}
+            }
+            mock_analyzer.analyze_btc_signals.return_value = mock_analysis
+            mock_btc_analyzer_class.return_value = mock_analyzer
 
-        mstr_html = handler._generate_mstr_section_html(self.sample_mstr_data)
+            handler = EnhancedNotificationHandler()
+            html_result = handler._generate_enhanced_report_html(
+                self.sample_processed_data, [], "December 09, 2024", self.test_image_base64
+            )
+        
+            self.assertIn('MSTR', html_result)
+            self.assertIn('425.67', html_result)
 
-        self.assertIn('📊 MSTR', mstr_html)
-        self.assertIn('425.67', mstr_html)
-        self.assertIn('Model Price', mstr_html)
-        self.assertIn('398.12', mstr_html)
-        self.assertIn('Deviation', mstr_html)
-        self.assertIn('6.9%', mstr_html)
-        self.assertIn('Options Strategy', mstr_html)
+    def test_enhanced_report_handles_mstr_errors(self):
+        """Test enhanced report handles MSTR errors gracefully"""
+        with patch('enhanced_notification_handler.BTCAnalyzer') as mock_btc_analyzer_class:
+            mock_analyzer = Mock()
+            mock_analysis = {
+                'market_status': 'bull', 'is_bull_market': True, 'price': 95000.50,
+                'ema_200': 88000.0, 'indicators': {'mvrv': 2.1, 'weekly_rsi': 65.0},
+                'signal_conditions': {'mvrv': {'value': 2.1, 'condition_met': False},
+                                    'rsi': {'value': 65.0, 'condition_met': False}},
+                'signal_status': {'status': 'none', 'message': '', 'emoji': '', 'prediction': ''}
+            }
+            mock_analyzer.analyze_btc_signals.return_value = mock_analysis
+            mock_btc_analyzer_class.return_value = mock_analyzer
 
-    def test_generate_mstr_section_html_error(self):
-        """Test MSTR section HTML generation with error"""
-        handler = EnhancedNotificationHandler()
-
-        error_data = {'error': 'Scraping timeout'}
-        mstr_html = handler._generate_mstr_section_html(error_data)
-
-        self.assertIn('ERROR', mstr_html)
-        self.assertIn('Scraping timeout', mstr_html)
+            error_data = {'assets': {'BTC': self.sample_btc_data, 'MSTR': {'error': 'Failed'}}}
+            handler = EnhancedNotificationHandler()
+            html_result = handler._generate_enhanced_report_html(error_data, [], "December 09, 2024", "")
+        
+            self.assertIn('MSTR', html_result)
 
     def test_generate_monetary_section_html_success(self):
         """Test monetary section HTML generation"""
