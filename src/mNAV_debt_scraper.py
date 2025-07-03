@@ -78,8 +78,10 @@ class MSTRMetricsScraper:
             xpaths = {
                 'mnav_label': '/html/body/div[1]/main/div/div/div[2]/div[1]/div/div/div/div[14]/div/p[1]/span',
                 'mnav_value': '/html/body/div[1]/main/div/div/div[2]/div[1]/div/div/div/div[14]/div/p[2]',
-                'debt_label': '/html/body/div[1]/main/div/div/div[2]/div[1]/div/div/div/div[19]/div/p[1]/span',
-                'debt_value': '/html/body/div[1]/main/div/div/div[2]/div[1]/div/div/div/div[19]/div/p[2]',
+                # --- MODIFIED XPATHS ---
+                'pref_nav_value': '//*[@id="__next"]/div/main/div/div/div[2]/div[1]/div/div/div/div[17]/div/p[2]',
+                'debt_nav_value': '//*[@id="__next"]/div/main/div/div/div[2]/div[1]/div/div/div/div[19]/div/p[2]',
+                # --- END MODIFICATION ---
                 'bitcoin_count_label': '//*[@id="__next"]/main/div/div/div[2]/div[1]/div/div/div/div[12]/div/p[1]/span',
                 'bitcoin_count_value': '//*[@id="__next"]/main/div/div/div[2]/div[1]/div/div/div/div[12]/div/p[2]'
             }
@@ -118,35 +120,44 @@ class MSTRMetricsScraper:
             time.sleep(1)
 
             # Extract Debt Ratio
-            logging.info("💰 Extracting debt ratio...")
+            # --- NEW SECTION: Extract Pref and Debt Ratios ---
+            logging.info("💰 Extracting Pref/Bitcoin NAV and Debt/Bitcoin NAV...")
             try:
-                debt_label_element = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.XPATH, xpaths['debt_label']))
+                # Extract Pref/Bitcoin NAV
+                pref_nav_element = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, xpaths['pref_nav_value']))
                 )
-                label_text = debt_label_element.text.strip().lower()
-                logging.info(f"📋 Debt label: '{label_text}'")
+                pref_nav_text = pref_nav_element.text.strip()
+                logging.info(f"💵 Pref/NAV raw text: '{pref_nav_text}'")
+                pref_match = re.search(r'([0-9]+\.?[0-9]*)', pref_nav_text)
+                pref_nav_value = float(pref_match.group(1)) if pref_match else 0
+                metrics['pref_nav_ratio'] = pref_nav_value
+                logging.info(f"✅ Pref/NAV ratio extracted: {pref_nav_value}%")
 
                 time.sleep(0.5)
 
-                debt_value_element = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.XPATH, xpaths['debt_value']))
+                # Extract Debt/Bitcoin NAV
+                debt_nav_element = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, xpaths['debt_nav_value']))
                 )
-                value_text = debt_value_element.text.strip()
-                logging.info(f"💵 Debt raw text: '{value_text}'")
-
-                value_match = re.search(r'([0-9]+\.?[0-9]*)', value_text)
-                if value_match:
-                    debt_value = float(value_match.group(1))
-                    if 0 <= debt_value <= 100:
-                        metrics['debt_ratio'] = debt_value
-                        logging.info(f"✅ Debt ratio extracted: {debt_value}%")
-                    else:
-                        logging.warning(f"⚠️ Debt ratio out of range: {debt_value}")
+                debt_nav_text = debt_nav_element.text.strip()
+                logging.info(f"💵 Debt/NAV raw text: '{debt_nav_text}'")
+                debt_match = re.search(r'([0-9]+\.?[0-9]*)', debt_nav_text)
+                debt_nav_value = float(debt_match.group(1)) if debt_match else 0
+                metrics['debt_nav_ratio'] = debt_nav_value
+                logging.info(f"✅ Debt/NAV ratio extracted: {debt_nav_value}%")
+                
+                # Calculate total for backward compatibility
+                total_debt_ratio = pref_nav_value + debt_nav_value
+                if 0 <= total_debt_ratio <= 100:
+                    metrics['debt_ratio'] = total_debt_ratio
+                    logging.info(f"✅ Total Debt Ratio calculated: {total_debt_ratio:.2f}%")
                 else:
-                    logging.warning(f"⚠️ Could not parse debt ratio from: '{value_text}'")
+                    logging.warning(f"⚠️ Total Debt Ratio out of range: {total_debt_ratio}")
 
             except Exception as e:
-                logging.error(f"❌ Failed to extract debt ratio: {str(e)}")
+                logging.error(f"❌ Failed to extract debt ratios: {str(e)}")
+            # --- END NEW SECTION ---
 
             time.sleep(1)
 
@@ -266,7 +277,9 @@ if __name__ == "__main__":
         metrics = result['metrics']
         print("\n🎉 Successfully scraped metrics from strategy.com:")
         print(f"   📊 mNAV: {metrics.get('mnav', 'Not found')}")
-        print(f"   💰 (Debt + Pref)/Bitcoin NAV: {metrics.get('debt_ratio', 'Not found')}%")
+        print(f"   💰 Pref/Bitcoin NAV: {metrics.get('pref_nav_ratio', 'Not found')}%")
+        print(f"   💰 Debt/Bitcoin NAV: {metrics.get('debt_nav_ratio', 'Not found')}%")
+        print(f"   ➡️  Total Debt Ratio: {metrics.get('debt_ratio', 'Not found')}%")
         print(f"   ₿ Bitcoin Count: {metrics.get('bitcoin_count', 'Not found')}")
         print(f"   🕒 Scraped at: {result.get('timestamp', 'Unknown')}")
 
