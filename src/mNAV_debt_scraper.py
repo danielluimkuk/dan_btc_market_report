@@ -76,14 +76,14 @@ class MSTRMetricsScraper:
 
             # Exact XPaths provided by user
             xpaths = {
-                'mnav_label': '/html/body/div[1]/main/div/div/div[2]/div[1]/div/div/div/div[14]/div/p[1]/span',
-                'mnav_value': '/html/body/div[1]/main/div/div/div[2]/div[1]/div/div/div/div[14]/div/p[2]',
+                'mnav_label': '//*[@id="__next"]/div/main/div/div/div[2]/div[1]/div/div/div/div[14]/div/p[1]/span',
+                'mnav_value': '//*[@id="__next"]/div/main/div/div/div[2]/div[1]/div/div/div/div[14]/div/p[2]',
                 # --- MODIFIED XPATHS ---
                 'pref_nav_value': '//*[@id="__next"]/div/main/div/div/div[2]/div[1]/div/div/div/div[17]/div/p[2]',
                 'debt_nav_value': '//*[@id="__next"]/div/main/div/div/div[2]/div[1]/div/div/div/div[19]/div/p[2]',
                 # --- END MODIFICATION ---
-                'bitcoin_count_label': '//*[@id="__next"]/main/div/div/div[2]/div[1]/div/div/div/div[12]/div/p[1]/span',
-                'bitcoin_count_value': '//*[@id="__next"]/main/div/div/div[2]/div[1]/div/div/div/div[12]/div/p[2]'
+                'bitcoin_count_label': '//*[@id="__next"]/div/main/div/div/div[2]/div[1]/div/div/div/div[12]/div/p[1]/span',
+                'bitcoin_count_value': '//*[@id="__next"]/div/main/div/div/div[2]/div[1]/div/div/div/div[12]/div/p[2]'
             }
 
             # Extract mNAV
