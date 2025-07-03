@@ -1292,14 +1292,20 @@ class EnhancedNotificationHandler:
         # 🎯 NEW: Extract new metrics
         rank = indicators.get('rank', 'N/A')
         mnav = indicators.get('mnav', 'N/A')
-        debt_ratio = indicators.get('debt_ratio', 'N/A')
+        # --- MODIFICATION ---
+        pref_nav_ratio = indicators.get('pref_nav_ratio', 'N/A')
+        debt_nav_ratio = indicators.get('debt_nav_ratio', 'N/A')
+        # --- END MODIFICATION ---
         bitcoin_count = indicators.get('bitcoin_count', 'N/A')
         btc_stress_price = indicators.get('btc_stress_price', 'N/A')
 
         # 🎯 NEW: Format display values
         rank_display = f"{rank}" if rank != 'N/A' else "N/A"
         mnav_display = f"{mnav}" if mnav != 'N/A' else "N/A"
-        debt_display = f"{debt_ratio:.1f}%" if debt_ratio != 'N/A' else "N/A"
+        # --- MODIFICATION ---
+        pref_nav_display = f"{pref_nav_ratio:.0f}%" if pref_nav_ratio != 'N/A' else "N/A"
+        debt_nav_display = f"{debt_nav_ratio:.0f}%" if debt_nav_ratio != 'N/A' else "N/A"
+        # --- END MODIFICATION ---
         bitcoin_display = f"{bitcoin_count:,.0f} " if bitcoin_count != 'N/A' else "N/A BTC"
         stress_display = f"${btc_stress_price:,.0f}" if btc_stress_price != 'N/A' else "N/A"
 
@@ -1321,8 +1327,12 @@ class EnhancedNotificationHandler:
             <span class="indicator-value">{mnav_display}</span>
         </div>
         <div class="indicator">
-            <span>Debt Ratio:</span>
-            <span class="indicator-value">{debt_display}</span>
+            <span>Pref/Bitcoin NAV:</span>
+            <span class="indicator-value">{pref_nav_display}</span>
+        </div>
+        <div class="indicator">
+            <span>Debt/Bitcoin NAV:</span>
+            <span class="indicator-value">{debt_nav_display}</span>
         </div>
         <div class="indicator">
             <span>BTC Stress Price:</span>
@@ -1341,7 +1351,7 @@ class EnhancedNotificationHandler:
             <span class="indicator-value">{iv_percentile:.1f}%</span>
         </div>
         <div class="indicator">
-            <span>IV Rank:</span>
+             <span>IV Rank:</span>
             <span class="indicator-value">{iv_rank:.1f}%</span>
         </div>
         """
@@ -1434,10 +1444,10 @@ class EnhancedNotificationHandler:
         <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
             <div style="font-size: 12px; color: #666; line-height: 1.4;">
                 <strong>📊 Metric Explanations:</strong><br>
-                • <strong>BTC Stress Price:</strong> The Bitcoin price level that would create significant stress for MSTR based on debt ratio<br>
-                • <strong>mNAV:</strong> Market NAV (Net Asset Value) ratio - MSTR's market value vs Bitcoin holdings value<br>
-                • <strong>Debt Ratio:</strong> Total debt + preferred stock divided by Bitcoin NAV
-            </div>
+                • <strong>BTC Stress Price:</strong> The Bitcoin price level that would create significant stress for MSTR based on debt obligations.<br>
+                • <strong>mNAV:</strong> Market NAV (Net Asset Value) ratio - MSTR's market value vs Bitcoin holdings value.<br>
+                • <strong>Debt/Pref NAV Ratios:</strong> Total debt and preferred stock shown individually as a percentage of Bitcoin NAV.
+                </div>
             <p style="margin: 10px 0 0 0; font-size: 11px; color: #666;">
                 📊 <a href="https://microstrategist.com/ballistic.html" target="_blank" style="color: #ff6b35; text-decoration: none; font-weight: 600;">
                     View MSTR Ballistic Model
