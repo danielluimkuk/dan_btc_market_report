@@ -702,6 +702,16 @@ def _validate_mstr_data(data: Dict) -> bool:
             logging.warning(f"Invalid debt ratio: {debt_ratio}")
             # Don't fail validation for debt ratio issues
 
+        pref_nav_ratio = indicators.get('pref_nav_ratio', 'N/A')
+        if pref_nav_ratio != 'N/A' and (not isinstance(pref_nav_ratio, (int, float)) or not (0 <= pref_nav_ratio <= 150)):
+            logging.warning(f"Invalid pref_nav_ratio: {pref_nav_ratio}")
+            # Don't fail validation
+
+        debt_nav_ratio = indicators.get('debt_nav_ratio', 'N/A')
+        if debt_nav_ratio != 'N/A' and (not isinstance(debt_nav_ratio, (int, float)) or not (0 <= debt_nav_ratio <= 150)):
+            logging.warning(f"Invalid debt_nav_ratio: {debt_nav_ratio}")
+            # Don't fail validation
+
         bitcoin_count = indicators.get('bitcoin_count', 'N/A')
         if bitcoin_count != 'N/A' and (
                 not isinstance(bitcoin_count, (int, float)) or not (100000 <= bitcoin_count <= 3000000)):
@@ -838,20 +848,28 @@ def collect_mstr_data(btc_price: float) -> Dict:
                 if metrics_result.get('success'):
                     metrics = metrics_result.get('metrics', {})
                     mstr_data['indicators']['mnav'] = metrics.get('mnav', 'N/A')
+                    mstr_data['indicators']['pref_nav_ratio'] = metrics.get('pref_nav_ratio', 'N/A')
+                    mstr_data['indicators']['debt_nav_ratio'] = metrics.get('debt_nav_ratio', 'N/A')
                     mstr_data['indicators']['debt_ratio'] = metrics.get('debt_ratio', 'N/A')
                     mstr_data['indicators']['bitcoin_count'] = metrics.get('bitcoin_count', 'N/A')
 
                     logging.info(f"✅ MSTR metrics collected:")
                     logging.info(f"   mNAV: {metrics.get('mnav', 'N/A')}")
+                    logging.info(f"   Pref/NAV Ratio: {metrics.get('pref_nav_ratio', 'N/A')}%")
+                    logging.info(f"   Debt/NAV Ratio: {metrics.get('debt_nav_ratio', 'N/A')}%")
                     logging.info(f"   Debt Ratio: {metrics.get('debt_ratio', 'N/A')}%")
                     logging.info(f"   Bitcoin Count: {metrics.get('bitcoin_count', 'N/A')}")
                 else:
                     mstr_data['indicators']['mnav'] = 'N/A'
+                    mstr_data['indicators']['pref_nav_ratio'] = 'N/A'
+                    mstr_data['indicators']['debt_nav_ratio'] = 'N/A'
                     mstr_data['indicators']['debt_ratio'] = 'N/A'
                     mstr_data['indicators']['bitcoin_count'] = 'N/A'
                     logging.warning(f"⚠️ MSTR metrics collection failed: {metrics_result.get('error', 'Unknown')}")
             except Exception as e:
                 mstr_data['indicators']['mnav'] = 'N/A'
+                mstr_data['indicators']['pref_nav_ratio'] = 'N/A'
+                mstr_data['indicators']['debt_nav_ratio'] = 'N/A'
                 mstr_data['indicators']['debt_ratio'] = 'N/A'
                 mstr_data['indicators']['bitcoin_count'] = 'N/A'
                 logging.warning(f"⚠️ MSTR metrics scraper error: {str(e)}")
@@ -917,6 +935,8 @@ if __name__ == "__main__":
         print(f"\n🎯 NEW METRICS:")
         print(f"   Rank: {indicators.get('rank', 'N/A')}")
         print(f"   mNAV: {indicators.get('mnav', 'N/A')}")
+        print(f"   Pref/NAV Ratio: {indicators.get('pref_nav_ratio', 'N/A')}%")
+        print(f"   Debt/NAV Ratio: {indicators.get('debt_nav_ratio', 'N/A')}%")
         print(f"   Debt Ratio: {indicators.get('debt_ratio', 'N/A')}%")
         print(f"   Bitcoin Count: {indicators.get('bitcoin_count', 'N/A')}")
         print(f"   BTC Stress Price: ${indicators.get('btc_stress_price', 'N/A')}")
