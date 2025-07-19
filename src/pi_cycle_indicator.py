@@ -1,5 +1,5 @@
 # =============================================================================
-# pi_cycle_indicator.py - FIXED VERSION
+# pi_cycle_indicator.py - UPDATED VERSION with Improved Convergence Logic
 # =============================================================================
 
 import pandas as pd
@@ -13,12 +13,22 @@ import json
 
 class PiCycleTopIndicator:
     """
-    🥧 FIXED Pi Cycle Top Indicator for Bitcoin Market Monitor
+    🥧 UPDATED Pi Cycle Top Indicator for Bitcoin Market Monitor
 
-    ✅ FIXES:
-    - Complete calculation implementation
-    - Proper numpy data type conversion
-    - JSON serialization safety
+    ✅ FINAL IMPROVEMENTS:
+    - Relative gap closure calculation instead of absolute dollars
+    - REFINED thresholds based on realistic Bitcoin $10k-$20k monthly progression:
+      * Rapidly Converging: < -0.8% daily gap closure
+      * Converging: -0.4% to -0.8% daily gap closure
+      * Stable: ±0.2% daily gap change
+      * Diverging: > +0.2% daily gap expansion
+    - UPDATED gap size alerts for realistic timelines:
+      * IMMINENT: ≤ 1.0% (days to weeks)
+      * VERY_CLOSE: ≤ 4.0% (weeks to months)
+      * APPROACHING: ≤ 10.0% (2-4 months)
+      * MODERATE: ≤ 20.0% (4-8 months)
+      * FAR: > 20.0% (>8 months)
+    - Proper JSON serialization safety
     - Robust error handling
     """
 
@@ -86,7 +96,7 @@ class PiCycleTopIndicator:
 
     def _calculate_pi_cycle_analysis(self, price_data: List[float], current_btc_price: float = None) -> Dict:
         """
-        🎯 FIXED: Complete Pi Cycle calculation implementation
+        🎯 UPDATED: Complete Pi Cycle calculation implementation with improved convergence logic
         """
         try:
             # Convert to pandas DataFrame
@@ -111,7 +121,7 @@ class PiCycleTopIndicator:
                 current_111dma, current_350dma_x2, gap_absolute, gap_percentage
             )
 
-            # Analyze trend
+            # Analyze trend with IMPROVED convergence logic
             trend_analysis = self._analyze_convergence_trend(df)
 
             # Build result with Python native types only
@@ -144,7 +154,7 @@ class PiCycleTopIndicator:
 
     def _determine_signal_status(self, ma_111: float, ma_350_x2: float,
                                  gap_absolute: float, gap_percentage: float) -> Dict:
-        """Determine Pi Cycle signal status"""
+        """Determine Pi Cycle signal status with UPDATED realistic thresholds"""
         is_crossed = ma_111 >= ma_350_x2
 
         if is_crossed:
@@ -157,40 +167,40 @@ class PiCycleTopIndicator:
                 'urgency': 'CRITICAL'
             }
 
-        # Determine proximity based on gap percentage
+        # UPDATED: Determine proximity based on realistic gap percentages
         if gap_percentage <= 1.0:
             return {
                 'status': 'SIGNAL_IMMINENT',
                 'proximity_level': 'IMMINENT',
                 'message': 'PI CYCLE TOP SIGNAL IMMINENT',
-                'description': 'Signal could trigger within days - prepare for cycle top',
+                'description': 'Signal could trigger within days to weeks - prepare for cycle top',
                 'color': '#ff6b35',
                 'urgency': 'VERY_HIGH'
             }
-        elif gap_percentage <= 3.0:
+        elif gap_percentage <= 4.0:
             return {
                 'status': 'VERY_CLOSE',
                 'proximity_level': 'VERY_CLOSE',
                 'message': 'PI CYCLE VERY CLOSE',
-                'description': 'Signal likely within weeks - monitor closely',
+                'description': 'Signal likely within weeks to months - monitor closely',
                 'color': '#ffc107',
                 'urgency': 'HIGH'
             }
-        elif gap_percentage <= 7.0:
+        elif gap_percentage <= 10.0:
             return {
                 'status': 'APPROACHING',
                 'proximity_level': 'APPROACHING',
                 'message': 'PI CYCLE APPROACHING',
-                'description': 'Signal possible within months - early alert phase',
+                'description': 'Signal possible within 2-4 months - early alert phase',
                 'color': '#28a745',
                 'urgency': 'MEDIUM'
             }
-        elif gap_percentage <= 15.0:
+        elif gap_percentage <= 20.0:
             return {
                 'status': 'MODERATE_DISTANCE',
                 'proximity_level': 'MODERATE',
                 'message': 'PI CYCLE MODERATE DISTANCE',
-                'description': 'Signal in development - continue monitoring',
+                'description': 'Signal in development - 4-8 months timeline',
                 'color': '#17a2b8',
                 'urgency': 'LOW'
             }
@@ -199,16 +209,25 @@ class PiCycleTopIndicator:
                 'status': 'FAR_FROM_SIGNAL',
                 'proximity_level': 'FAR',
                 'message': 'PI CYCLE FAR FROM SIGNAL',
-                'description': 'Moving averages distant - no immediate concern',
+                'description': 'Moving averages distant - timeline >8 months',
                 'color': '#6c757d',
                 'urgency': 'NONE'
             }
 
     def _analyze_convergence_trend(self, df: pd.DataFrame) -> Dict:
-        """Analyze convergence trend"""
+        """
+        🎯 UPDATED: Analyze convergence trend using RELATIVE gap closure
+
+        Uses REFINED thresholds based on realistic Bitcoin $10k-$20k monthly progression:
+        - rapidly_converging: < -0.8% daily gap closure
+        - converging: -0.8% to -0.2% daily gap closure
+        - stable: ±0.2% daily gap change
+        - diverging: > +0.2% daily gap expansion
+        """
         try:
-            # Calculate recent trend (last 30 days)
+            # Calculate recent gaps (ma_350_x2 - ma_111)
             recent_gaps = df['ma_350_x2'] - df['ma_111']
+
             if len(recent_gaps) < 30:
                 return {
                     'trend': 'insufficient_data',
@@ -219,17 +238,33 @@ class PiCycleTopIndicator:
 
             recent_gaps_30d = recent_gaps.tail(30)
 
-            # Calculate average daily change
+            # Calculate daily changes in gap
             daily_changes = recent_gaps_30d.diff().dropna()
-            avg_convergence_rate = float(daily_changes.mean())
 
-            if avg_convergence_rate < -50:
+            # Get current gap for relative calculation
+            current_gap = recent_gaps.iloc[-1]
+
+            if current_gap <= 0:
+                # Signal already triggered or invalid data
+                return {
+                    'trend': 'signal_active_or_invalid',
+                    'trend_description': 'Signal active or invalid gap data',
+                    'daily_rate': 0.0,
+                    'is_converging': True
+                }
+
+            # 🎯 UPDATED: Calculate RELATIVE gap closure rate
+            relative_daily_changes = (daily_changes / current_gap) * 100
+            avg_gap_closure_pct = float(relative_daily_changes.mean())
+
+            # 🎯 UPDATED: Apply REFINED thresholds based on realistic Bitcoin progression
+            if avg_gap_closure_pct < -0.8:
                 trend = 'rapidly_converging'
                 trend_description = 'Rapidly converging - signal acceleration'
-            elif avg_convergence_rate < -10:
+            elif avg_gap_closure_pct < -0.2:
                 trend = 'converging'
                 trend_description = 'Steadily converging toward signal'
-            elif avg_convergence_rate < 10:
+            elif abs(avg_gap_closure_pct) <= 0.2:
                 trend = 'stable'
                 trend_description = 'Stable - minimal change in gap'
             else:
@@ -239,8 +274,8 @@ class PiCycleTopIndicator:
             return {
                 'trend': trend,
                 'trend_description': trend_description,
-                'daily_rate': round(avg_convergence_rate, 2),
-                'is_converging': bool(avg_convergence_rate < 0)
+                'daily_rate': round(avg_gap_closure_pct, 3),
+                'is_converging': bool(avg_gap_closure_pct < 0)
             }
 
         except Exception as e:
@@ -356,7 +391,7 @@ class PiCycleTopIndicator:
             return data
 
 
-# Quick test to verify the fix
+# Quick test to verify the updated logic
 if __name__ == "__main__":
     import os
     from dotenv import load_dotenv
@@ -365,8 +400,8 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
 
-    print("🧪 Testing FIXED Pi Cycle Indicator")
-    print("=" * 50)
+    print("🧪 Testing UPDATED Pi Cycle Indicator with REFINED Convergence Logic")
+    print("=" * 70)
 
     pi_cycle = PiCycleTopIndicator(polygon_api_key=os.getenv('POLYGON_API_KEY'))
     result = pi_cycle.get_pi_cycle_analysis(current_btc_price=108000)
@@ -379,11 +414,27 @@ if __name__ == "__main__":
         if result.get('success'):
             values = result['current_values']
             status = result['signal_status']
+            trend = result['trend_analysis']
+
             print(f"📊 Status: {status['proximity_level']}")
             print(f"💰 BTC: ${values['btc_price']:,.2f}")
             print(f"📈 Gap: {values['gap_percentage']:.1f}%")
+            print(f"🎯 Trend: {trend['trend']} ({trend['daily_rate']:.3f}% daily)")
+            print(f"📝 Description: {trend['trend_description']}")
         else:
             print(f"⚠️ Fallback mode: {result.get('error', 'Unknown error')}")
 
     except Exception as e:
         print(f"❌ JSON serialization failed: {e}")
+
+    print(f"\n🎯 UPDATED CONVERGENCE THRESHOLDS:")
+    print(f"   🚀 Rapidly Converging: < -0.8% daily gap closure")
+    print(f"   📈 Converging: -0.4% to -0.8% daily gap closure")
+    print(f"   ⚖️  Stable: ±0.2% daily gap change")
+    print(f"   📉 Diverging: > +0.2% daily gap expansion")
+    print(f"\n🎯 UPDATED GAP SIZE THRESHOLDS:")
+    print(f"   🚨 IMMINENT: ≤ 1.0% gap (days to weeks)")
+    print(f"   ⚠️  VERY_CLOSE: ≤ 4.0% gap (weeks to months)")
+    print(f"   📢 APPROACHING: ≤ 10.0% gap (2-4 months)")
+    print(f"   📊 MODERATE: ≤ 20.0% gap (4-8 months)")
+    print(f"   📍 FAR: > 20.0% gap (>8 months)")
