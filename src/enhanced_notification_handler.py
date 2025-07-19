@@ -1480,27 +1480,18 @@ class EnhancedNotificationHandler:
             """
 
         return f"""
-        <div class="asset-section laws-section">
-            <div class="asset-header laws-header">
-                <span class="asset-symbol">⚖️ Bitcoin Laws in USA</span>
-                <span style="color: #666; font-size: 13px;">Latest Snapshot</span>
+        <div class="laws-section">
+            <div class="laws-header">
+                <span class="laws-symbol">⚖️ Bitcoin Laws in USA</span>
+                <span style="color: #666; font-size: 13px;">Legislative Tracker</span>
             </div>
-
-            <div style="display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start;">
-                <div>
-                    <img src="{image_url}" 
-                         alt="Bitcoin Laws Screenshot"
-                         style="width: 100%; max-width: 600px; height: auto; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); display: block;">
+            <div style="padding: 15px; background: white; border-radius: 8px;">
+                <div style="color: #555; font-size: 14px; margin-bottom: 12px;">
+                    📋 State-by-state Bitcoin strategic reserve bill progress and legislative developments.
                 </div>
-
-                <div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #ddd;">
-                    <div style="color: #555; font-size: 14px; margin-bottom: 12px; line-height: 1.4;">
-                        📋 State-by-state Bitcoin strategic reserve bill progress and legislative developments.
-                    </div>
-                    <p>🔗 <a href="https://bitcoinlaws.io" target="_blank" style="color: #007bff; text-decoration: none; font-weight: 600;">
-                        Visit bitcoinlaws.io for full details →
-                    </a></p>
-                </div>
+                <p>🔗 <a href="https://bitcoinlaws.io" target="_blank" style="color: #007bff;">
+                    Visit bitcoinlaws.io for full details →
+                </a></p>
             </div>
         </div>
         """
@@ -1526,27 +1517,18 @@ class EnhancedNotificationHandler:
             """
 
         return f"""
-        <div class="asset-section laws-section">
-            <div class="asset-header laws-header">
-                <span class="asset-symbol">⚖️ Bitcoin Laws in USA</span>
-                <span style="color: #666; font-size: 13px;">Latest Snapshot</span>
+        <div class="laws-section">
+            <div class="laws-header">
+                <span class="laws-symbol">⚖️ Bitcoin Laws in USA</span>
+                <span style="color: #666; font-size: 13px;">Legislative Tracker</span>
             </div>
-
-            <div style="display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start;">
-                <div>
-                    <img src="data:image/jpeg;base64,{screenshot_base64}" 
-                         alt="Bitcoin Laws Screenshot"
-                         style="width: 100%; max-width: 300px; height: auto; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: block;">
+            <div style="padding: 15px; background: white; border-radius: 8px;">
+                <div style="color: #555; font-size: 14px; margin-bottom: 12px;">
+                    📋 State-by-state Bitcoin strategic reserve bill progress and legislative developments.
                 </div>
-
-                <div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #ddd;">
-                    <div style="color: #555; font-size: 14px; margin-bottom: 12px; line-height: 1.4;">
-                        📋 State-by-state Bitcoin strategic reserve bill progress and legislative developments.
-                    </div>
-                    <p>🔗 <a href="https://bitcoinlaws.io" target="_blank" style="color: #007bff; text-decoration: none; font-weight: 600;">
-                        Visit bitcoinlaws.io for full details →
-                    </a></p>
-                </div>
+                <p>🔗 <a href="https://bitcoinlaws.io" target="_blank" style="color: #007bff;">
+                    Visit bitcoinlaws.io for full details →
+                </a></p>
             </div>
         </div>
         """
