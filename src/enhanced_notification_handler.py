@@ -1466,7 +1466,6 @@ class EnhancedNotificationHandler:
             <div class="asset-section laws-section">
                 <div class="asset-header laws-header">
                     <span class="asset-symbol">⚖️ Bitcoin Laws</span>
-                    <span style="color: #dc3545;">Image Upload Failed</span>
                 </div>
                 <div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #ddd;">
                     <div style="color: #555; font-size: 14px; margin-bottom: 12px; line-height: 1.4;">
@@ -1503,7 +1502,6 @@ class EnhancedNotificationHandler:
             <div class="asset-section laws-section">
                 <div class="asset-header laws-header">
                     <span class="asset-symbol">⚖️ Bitcoin Laws</span>
-                    <span style="color: #dc3545;">Screenshot Unavailable</span>
                 </div>
                 <div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #ddd;">
                     <div style="color: #555; font-size: 14px; margin-bottom: 12px; line-height: 1.4;">
