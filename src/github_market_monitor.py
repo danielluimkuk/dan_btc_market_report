@@ -123,8 +123,9 @@ def main():
 
         # Capture Bitcoin Laws screenshot
         logging.info("⚖️ Capturing Bitcoin Laws screenshot...")
-        bitcoin_laws_screenshot = capture_bitcoin_laws_screenshot(verbose=True)
-
+        # bitcoin_laws_screenshot = capture_bitcoin_laws_screenshot(verbose=True) disabled for now
+        bitcoin_laws_screenshot = ""
+        
         if bitcoin_laws_screenshot:
             logging.info("✅ Bitcoin Laws screenshot captured successfully")
         else:
