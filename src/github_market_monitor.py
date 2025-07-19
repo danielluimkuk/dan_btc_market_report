@@ -123,8 +123,9 @@ def main():
 
         # Capture Bitcoin Laws screenshot
         logging.info("⚖️ Capturing Bitcoin Laws screenshot...")
-        bitcoin_laws_screenshot = capture_bitcoin_laws_screenshot(verbose=True)
-
+        # bitcoin_laws_screenshot = capture_bitcoin_laws_screenshot(verbose=True) disabled for now
+        bitcoin_laws_screenshot = ""
+        
         if bitcoin_laws_screenshot:
             logging.info("✅ Bitcoin Laws screenshot captured successfully")
         else:
@@ -274,8 +275,8 @@ def should_send_daily_report_enhanced(processed_data: Dict, collected_data: Dict
         # Core components must succeed
         core_components_ready = (
                 btc_success and btc_data_quality['is_valid'] and
-                mstr_success and mstr_data_quality['is_valid'] and
-                screenshot_success
+                mstr_success and mstr_data_quality['is_valid']
+                # screenshot_success
         )
 
         if core_components_ready:
