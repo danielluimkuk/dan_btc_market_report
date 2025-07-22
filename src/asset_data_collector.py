@@ -6,6 +6,13 @@ import os
 import time
 import logging
 from mvrv_scraper import MVRVScraper
+import time
+import re
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 # 🎯 NEW: Import Pi Cycle indicator
 from pi_cycle_indicator import PiCycleTopIndicator
@@ -64,18 +71,18 @@ class HybridBTCCollector:
 
     def get_btc_data(self) -> Dict:
         """
-        🎯 ENHANCED: Get complete BTC data: Live price + Historical indicators + MVRV + Pi Cycle
-        Returns dict with: price, weekly_rsi, ema_200, mvrv, pi_cycle, price_source
+        🎯 ENHANCED: Get complete BTC data: Live price + Historical indicators + MVRV + Pi Cycle + Mining Cost
+        Returns dict with: price, weekly_rsi, ema_200, mvrv, pi_cycle, mining_cost, price_source
         """
         try:
-            logging.info("🎯 Starting ENHANCED HYBRID BTC data collection with Pi Cycle...")
-
+            logging.info("🎯 Starting ENHANCED HYBRID BTC data collection with Pi Cycle + Mining Cost...")
+    
             # 🎯 Get LIVE BTC price from CoinGecko (or fallback to Polygon yesterday)
             price_result = self.get_live_btc_price_with_fallback()
             current_price = price_result['price']
             price_source = price_result['source']
             price_note = price_result['note']
-
+    
             # 🎯 ENHANCED LOGGING: Clear indication of what's happening
             if price_source == 'coingecko':
                 logging.info(f"🟢 HYBRID BTC: LIVE price from CoinGecko: ${current_price:,.2f}")
@@ -91,26 +98,26 @@ class HybridBTCCollector:
                 logging.error(f"   🚨 STALE FALLBACK: Using 2-day old data - check APIs!")
             else:
                 logging.warning(f"❓ HYBRID BTC: Unknown source '{price_source}': ${current_price:,.2f}")
-
+    
             # Add delay to respect rate limits
             time.sleep(15)
-
+    
             # Get daily data for EMA200 calculation (Polygon historical - works on free tier)
             daily_ema_200 = self.get_daily_ema_200()
             logging.info(f"✅ EMA200 collected: ${daily_ema_200:,.2f}")
-
+    
             # Add delay to respect rate limits
             time.sleep(15)
-
+    
             # Get weekly data for RSI calculation (Polygon historical - works on free tier)
             weekly_rsi = self.get_weekly_rsi()
             logging.info(f"✅ Weekly RSI collected: {weekly_rsi:.1f}")
-
+    
             # Get MVRV from TradingView scraper
             logging.info("Collecting MVRV data from TradingView...")
             mvrv_value = self.mvrv_scraper.get_mvrv_value(verbose=False)
             logging.info(f"✅ MVRV collected: {mvrv_value:.2f}")
-
+    
             # 🎯 NEW: Get Pi Cycle Top indicator data
             logging.info("🥧 Collecting Pi Cycle Top indicator data...")
             pi_cycle_data = self.pi_cycle_indicator.get_pi_cycle_analysis(current_btc_price=current_price)
@@ -122,12 +129,26 @@ class HybridBTCCollector:
                 logging.info(f"✅ Pi Cycle collected: {proximity_level} ({gap_percentage:.1f}% gap)")
             else:
                 logging.warning(f"⚠️ Pi Cycle collection failed: {pi_cycle_data.get('error', 'Unknown error')}")
-
+    
+            # 🎯 NEW: Get Mining Cost data
+            logging.info("⛏️ Collecting Bitcoin mining cost data...")
+            mining_cost_data = self.get_mining_cost_data()
+            
+            if mining_cost_data.get('success'):
+                mining_cost = mining_cost_data.get('mining_cost', 'N/A')
+                data_date = mining_cost_data.get('data_date', 'Unknown')
+                logging.info(f"✅ Mining Cost collected: ${mining_cost:,.0f} (Date: {data_date})")
+            else:
+                mining_cost = 'N/A'
+                data_date = 'N/A'
+                logging.warning(f"⚠️ Mining Cost collection failed: {mining_cost_data.get('error', 'Unknown error')}")
+    
             # 🎯 FINAL STATUS LOG
             logging.info(f"📊 Complete BTC indicators: EMA200=${daily_ema_200:,.2f}, "
                         f"Weekly RSI={weekly_rsi:.1f}, MVRV={mvrv_value:.2f}, "
-                        f"Pi Cycle={pi_cycle_data.get('signal_status', {}).get('proximity_level', 'FAILED')}")
-
+                        f"Pi Cycle={pi_cycle_data.get('signal_status', {}).get('proximity_level', 'FAILED')}, "
+                        f"Mining Cost=${mining_cost if mining_cost != 'N/A' else 'N/A'}")
+    
             result = {
                 'success': True,
                 'timestamp': datetime.now(timezone.utc).isoformat(),
@@ -138,20 +159,25 @@ class HybridBTCCollector:
                 'weekly_rsi': weekly_rsi,
                 'mvrv': mvrv_value,
                 'pi_cycle': pi_cycle_data,  # 🎯 NEW: Include Pi Cycle data
-                'source': f'{price_source} + polygon_historical + tradingview + pi_cycle'
+                'mining_cost': mining_cost,  # 🎯 NEW: Include Mining Cost
+                'mining_cost_date': data_date,  # 🎯 NEW: Include data date
+                'source': f'{price_source} + polygon_historical + tradingview + pi_cycle + macromicro'
             }
-
-            logging.info(f"🎉 Complete ENHANCED HYBRID BTC data collected successfully with Pi Cycle!")
+    
+            logging.info(f"🎉 Complete ENHANCED HYBRID BTC data collected successfully with Pi Cycle + Mining Cost!")
             return result
-
+    
         except Exception as e:
             logging.error(f"Error collecting enhanced BTC data: {str(e)}")
             return {
                 'success': False,
                 'error': str(e),
                 'timestamp': datetime.now(timezone.utc).isoformat(),
-                'pi_cycle': {'success': False, 'error': f'Collection failed: {str(e)}'}  # 🎯 Include failed Pi Cycle
+                'pi_cycle': {'success': False, 'error': f'Collection failed: {str(e)}'},  # 🎯 Include failed Pi Cycle
+                'mining_cost': 'N/A',  # 🎯 Include failed Mining Cost
+                'mining_cost_date': 'N/A'
             }
+
 
     def get_live_btc_price_with_fallback(self) -> Dict:
         """
@@ -395,6 +421,87 @@ class HybridBTCCollector:
             logging.error(f"CoinGecko connection test failed: {str(e)}")
             return False
 
+    def get_mining_cost_data(self) -> Dict:
+        """
+        Get Bitcoin average mining cost from MacroMicro
+        Returns dict with mining_cost and data_date, or N/A values if failed
+        """
+        driver = None
+        try:
+            logging.info("⛏️ Collecting Bitcoin mining cost from MacroMicro...")
+            
+            chrome_options = Options()
+            chrome_options.add_argument('--headless')
+            chrome_options.add_argument('--no-sandbox')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument('--disable-gpu')
+            chrome_options.add_argument('--window-size=1920,1080')
+            chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+            
+            driver = webdriver.Chrome(options=chrome_options)
+            driver.get("https://en.macromicro.me/charts/29435/bitcoin-production-total-cost")
+            
+            # Wait for page to load
+            WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+            time.sleep(8)  # Additional wait for dynamic content
+            
+            # Extract mining cost value
+            try:
+                mining_cost_element = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="ccApp"]/div/div[2]/div[1]/div/div/div[2]/div[4]/ul/li[1]/div[2]/span[1]'))
+                )
+                mining_cost_text = mining_cost_element.text.strip()
+                logging.info(f"📊 Raw mining cost text: '{mining_cost_text}'")
+                
+                # Parse the value - remove commas, dollar signs, etc.
+                clean_text = mining_cost_text.replace(',', '').replace('$', '').replace(' ', '')
+                
+                # Extract numeric value
+                value_match = re.search(r'([0-9]+\.?[0-9]*)', clean_text)
+                if value_match:
+                    mining_cost = float(value_match.group(1))
+                    
+                    # Validate range (10,000 to 2,000,000)
+                    if 10000 <= mining_cost <= 2000000:
+                        logging.info(f"✅ Valid mining cost extracted: ${mining_cost:,.0f}")
+                    else:
+                        logging.warning(f"⚠️ Mining cost out of valid range: ${mining_cost:,.0f}")
+                        return {'mining_cost': 'N/A', 'data_date': 'N/A', 'error': 'Value out of range'}
+                else:
+                    logging.warning(f"⚠️ Could not parse numeric value from: '{mining_cost_text}'")
+                    return {'mining_cost': 'N/A', 'data_date': 'N/A', 'error': 'Could not parse value'}
+                    
+            except Exception as e:
+                logging.error(f"❌ Failed to extract mining cost: {str(e)}")
+                return {'mining_cost': 'N/A', 'data_date': 'N/A', 'error': 'Element not found'}
+            
+            # Extract data date
+            try:
+                date_element = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="ccApp"]/div/div[2]/div[1]/div/div/div[2]/div[4]/ul/li[1]/div[1]/div[1]/div[2]'))
+                )
+                data_date = date_element.text.strip()
+                logging.info(f"📅 Mining cost data date: '{data_date}'")
+            except Exception as e:
+                logging.warning(f"⚠️ Could not extract data date: {str(e)}")
+                data_date = 'Unknown'
+            
+            # Small delay to be respectful to the server
+            time.sleep(2)
+            
+            return {
+                'mining_cost': mining_cost,
+                'data_date': data_date,
+                'success': True
+            }
+            
+        except Exception as e:
+            logging.error(f"❌ Mining cost collection failed: {str(e)}")
+            return {'mining_cost': 'N/A', 'data_date': 'N/A', 'error': str(e)}
+        finally:
+            if driver:
+                driver.quit()
+
 
 # Updated AssetDataCollector class for integration
 class HybridAssetDataCollector:
@@ -434,7 +541,7 @@ class HybridAssetDataCollector:
             return {'success': False, 'error': str(e)}
 
     def _collect_btc_data_hybrid(self) -> Dict:
-        """🎯 ENHANCED HYBRID: Collect Bitcoin data using CoinGecko live + Polygon historical + Pi Cycle"""
+        """🎯 ENHANCED HYBRID: Collect Bitcoin data using CoinGecko live + Polygon historical + Pi Cycle + Mining Cost"""
         btc_data = {
             'success': False,
             'type': 'crypto',
@@ -444,16 +551,16 @@ class HybridAssetDataCollector:
             'price_note': '',
             'indicators': {},
             'pi_cycle': {},  # 🎯 NEW: Initialize Pi Cycle data
-            'metadata': {'source': 'coingecko_live + polygon_historical + tradingview + pi_cycle'}
+            'metadata': {'source': 'coingecko_live + polygon_historical + tradingview + pi_cycle + macromicro'}
         }
-
+    
         try:
             if not self.btc_collector:
                 raise Exception("Hybrid BTC collector not available")
-
-            # Get complete BTC data (live price + historical indicators + Pi Cycle)
+    
+            # Get complete BTC data (live price + historical indicators + Pi Cycle + Mining Cost)
             hybrid_data = self.btc_collector.get_btc_data()
-
+    
             if hybrid_data.get('success'):
                 btc_data['price'] = hybrid_data.get('price', 0)
                 btc_data['price_source'] = hybrid_data.get('price_source', 'unknown')
@@ -461,10 +568,27 @@ class HybridAssetDataCollector:
                 btc_data['indicators']['ema_200'] = hybrid_data.get('ema_200')
                 btc_data['indicators']['weekly_rsi'] = hybrid_data.get('weekly_rsi')
                 btc_data['indicators']['mvrv'] = hybrid_data.get('mvrv')
+                
+                # 🎯 NEW: Add mining cost to indicators
+                mining_cost = hybrid_data.get('mining_cost', 'N/A')
+                mining_cost_date = hybrid_data.get('mining_cost_date', 'N/A')
+                
+                btc_data['indicators']['mining_cost'] = mining_cost
+                btc_data['indicators']['mining_cost_date'] = mining_cost_date
+                
+                # 🎯 NEW: Calculate price/cost ratio
+                if mining_cost != 'N/A' and mining_cost > 0:
+                    price_cost_ratio = round(hybrid_data.get('price', 0) / mining_cost, 2)
+                    btc_data['indicators']['price_cost_ratio'] = price_cost_ratio
+                    logging.info(f"💰 Price/Cost Ratio calculated: {price_cost_ratio}")
+                else:
+                    btc_data['indicators']['price_cost_ratio'] = 'N/A'
+                    logging.warning("⚠️ Could not calculate Price/Cost Ratio")
+                
                 btc_data['pi_cycle'] = hybrid_data.get('pi_cycle', {})  # 🎯 NEW: Include Pi Cycle data
                 btc_data['metadata']['source'] = hybrid_data.get('source')
                 btc_data['success'] = True
-
+    
                 # 🎯 DEBUG: Log Pi Cycle data persistence
                 pi_cycle_success = btc_data['pi_cycle'].get('success', False)
                 if pi_cycle_success:
@@ -473,19 +597,24 @@ class HybridAssetDataCollector:
                     logging.info(f"🎯 Pi Cycle data persisted: {proximity_level} ({gap_percentage:.1f}% gap)")
                 else:
                     logging.warning(f"⚠️ Pi Cycle data failed to persist: {btc_data['pi_cycle'].get('error', 'Unknown')}")
-
+    
             else:
                 btc_data['error'] = hybrid_data.get('error', 'Unknown hybrid API error')
                 btc_data['pi_cycle'] = hybrid_data.get('pi_cycle', {'success': False, 'error': 'Collection failed'})
+                btc_data['indicators']['mining_cost'] = 'N/A'
+                btc_data['indicators']['mining_cost_date'] = 'N/A'
+                btc_data['indicators']['price_cost_ratio'] = 'N/A'
                 logging.error(f'Hybrid API error: {btc_data["error"]}')
-
+    
         except Exception as e:
             btc_data['error'] = str(e)
             btc_data['pi_cycle'] = {'success': False, 'error': f'Collection exception: {str(e)}'}
+            btc_data['indicators']['mining_cost'] = 'N/A'
+            btc_data['indicators']['mining_cost_date'] = 'N/A'
+            btc_data['indicators']['price_cost_ratio'] = 'N/A'
             logging.error(f'Error collecting enhanced hybrid BTC data: {str(e)}')
-
+    
         return btc_data
-
     def _collect_mstr_data(self) -> Dict:
         """Keep existing MSTR collection logic"""
         return {
