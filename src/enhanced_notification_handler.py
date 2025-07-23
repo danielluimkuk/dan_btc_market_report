@@ -1132,10 +1132,11 @@ class EnhancedNotificationHandler:
                 <p style="color: #dc3545; margin: 20px 0;">Error: {btc_data['error']}</p>
             </div>
             """
-    
+        
+        # ======= START INDENT FROM HERE =======
         # Analyze signals using BTCAnalyzer
         signal_analysis = self.btc_analyzer.analyze_btc_signals(btc_data)
-    
+        
         if 'error' in signal_analysis:
             return f"""
             <div class="asset-section btc-section">
@@ -1146,7 +1147,7 @@ class EnhancedNotificationHandler:
                 <p style="color: #dc3545; margin: 20px 0;">Signal analysis error: {signal_analysis['error']}</p>
             </div>
             """
-    
+        
         # Extract analysis results
         price = signal_analysis['price']
         ema_200 = signal_analysis['ema_200']
@@ -1154,30 +1155,31 @@ class EnhancedNotificationHandler:
         market_status = "🐂 Bull Market" if is_bull_market else "🐻 Bear Market"
         indicators = signal_analysis['indicators']
         signal_conditions = signal_analysis['signal_conditions']
-    
+        
         # 🎯 NEW: Add mining cost data to signal analysis for signal boxes
         btc_indicators = btc_data.get('indicators', {})
         signal_analysis['indicators'] = {**indicators, **btc_indicators}  # Merge indicators
-    
+        
         return f"""
         <div class="asset-section btc-section">
             <div class="asset-header btc-header">
                 <span class="asset-symbol">₿ BTC</span>
                 <span class="asset-price btc-price">${price:,.2f}</span>
             </div>
-    
+        
             <div class="market-status {'bull-market' if is_bull_market else 'bear-market'}">
                 {market_status}
             </div>
-    
+        
             <div class="indicators">
                 <h3>📊 BTC Indicators</h3>
                 {self._generate_btc_indicators_html(signal_analysis['indicators'], signal_conditions, ema_200, price)}
             </div>
-    
+        
             {self._generate_btc_signal_boxes_html(signal_analysis)}
         </div>
         """
+        # ======= END INDENT UNTIL HERE =======
 
 
     def _generate_btc_indicators_html(self, indicators: Dict, signal_conditions: Dict, ema_200: float,
