@@ -1211,14 +1211,14 @@ class EnhancedNotificationHandler:
         mining_cost_signal_text = ""
         if price_cost_ratio != 'N/A':
             ratio_value = float(price_cost_ratio)
-            if ratio_value < 1.0:
-                ratio_status = "💎"  # Value opportunity
+            if ratio_value < 0.9:
+                ratio_status = "🟢"  # Value opportunity
                 ratio_message = "Trading below production cost - strong value opportunity"
-            elif 1.0 <= ratio_value <= 3.0:
-                ratio_status = "✅"  # Normal range
-                ratio_message = "Normal trading range of 1.0-3.0"
+            elif 0.9 <= ratio_value <= 2.5:
+                ratio_status = "🟡"  # Normal range
+                ratio_message = "Normal trading range of 0.9-2.5"
             else:  # > 3.0
-                ratio_status = "🔥"  # High premium
+                ratio_status = "🔴"  # High premium
                 ratio_message = "High premium - consider profit taking"
             
             ratio_display = f"{price_cost_ratio} {ratio_status}"
@@ -1265,15 +1265,15 @@ class EnhancedNotificationHandler:
         mining_cost_signal = ""
         if price_cost_ratio != 'N/A':
             ratio_value = float(price_cost_ratio)
-            if ratio_value < 1.0:
+            if ratio_value < 0.9:
                 signal_class = "buy-signal"
-                signal_text = f"💎 Mining Cost Signal: {price_cost_ratio} (Trading below production cost - strong value opportunity)"
-            elif 1.0 <= ratio_value <= 3.0:
+                signal_text = f"🟢 Mining Cost Signal: {price_cost_ratio} (Trading below production cost - strong value opportunity)"
+            elif 0.9 <= ratio_value <= 2.5:
                 signal_class = "hold-signal" 
-                signal_text = f"✅ Mining Cost Signal: {price_cost_ratio} (Normal trading range of 1.0-3.0)"
-            else:  # > 3.0
+                signal_text = f"🟡 Mining Cost Signal: {price_cost_ratio} (Normal trading range of 1.0-3.0)"
+            else:  # > 2.5
                 signal_class = "sell-signal"
-                signal_text = f"🔥 Mining Cost Signal: {price_cost_ratio} (High premium - consider profit taking)"
+                signal_text = f"🔴 Mining Cost Signal: {price_cost_ratio} (High premium - consider profit taking)"
             
             mining_cost_signal = f"""
             <div class="signal-box {signal_class}" style="margin-top: 10px;">
