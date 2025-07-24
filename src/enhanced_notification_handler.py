@@ -1254,21 +1254,54 @@ class EnhancedNotificationHandler:
         """
 
     def _generate_btc_signal_boxes_html(self, signal_analysis: Dict) -> str:
-        """Generate BTC signal boxes including mining cost signal"""
+        """Generate BTC signal boxes using actual signal analysis + mining cost signal"""
         signal_status = signal_analysis.get('signal_status', {})
 
-        # Get mining cost ratio for additional signal
+        # Extract real BTC signal data
+        status = signal_status.get('status', 'none')
+        message = signal_status.get('message', '')
+        emoji = signal_status.get('emoji', '🟡')
+        prediction = signal_status.get('prediction', '')
+
+        # Determine CSS class and display based on actual signal
+        if status == 'active':
+            if 'BUY' in message.upper():
+                btc_signal_class = "buy-signal"
+                btc_title = f"{emoji} BUY SIGNAL ACTIVE"
+                btc_subtitle = "Strong Buy Conditions Met"
+            elif 'SELL' in message.upper():
+                btc_signal_class = "sell-signal"
+                btc_title = f"{emoji} SELL SIGNAL ACTIVE"
+                btc_subtitle = "Strong Sell Conditions Met"
+            else:
+                btc_signal_class = "signal-active"
+                btc_title = f"{emoji} {message}"
+                btc_subtitle = "Signal Active"
+        elif status == 'weakening':
+            btc_signal_class = "signal-weakening"
+            btc_title = f"{emoji} SIGNAL WEAKENING"
+            btc_subtitle = "Conditions Deteriorating"
+        elif status == 'recently_off':
+            btc_signal_class = "signal-off"
+            btc_title = f"{emoji} SIGNAL RECENTLY OFF"
+            btc_subtitle = "Signal Ended"
+        else:  # status == 'none'
+            btc_signal_class = "hold-signal"
+            btc_title = "🟡 HOLD SIGNAL"
+            btc_subtitle = "Monitor Position"
+            prediction = "Market trending but conditions not extreme yet"
+
+        # Mining cost signal (your updated version)
         indicators = signal_analysis.get('indicators', {})
         price_cost_ratio = indicators.get('price_cost_ratio', 'N/A')
 
-        # Generate mining cost signal
         mining_cost_signal = ""
         if price_cost_ratio != 'N/A':
             ratio_value = float(price_cost_ratio)
             if ratio_value < 1.0:
                 signal_class_mining = "buy-signal"
                 signal_text = f"⛏️ Below Production Cost - Strong Value Zone"
-            elif 1.0 <= ratio_value <= 4.0:  # Fixed range to 4.0
+            elif 1.0 <= ratio_value <= 4.0:
                 signal_class_mining = "hold-signal"
                 signal_text = f"⛏️ Normal Premium Range - Miners Profitable"
             else:  # > 4.0
@@ -1282,10 +1315,10 @@ class EnhancedNotificationHandler:
             """
 
         return f"""
-        <div class="signal-box hold-signal">
-            <div class="signal-title">🟡 HOLD SIGNAL 📊</div>
-            <div class="signal-subtitle">Monitor Position</div>
-            <div class="explanation">Market trending but conditions not extreme yet</div>
+        <div class="signal-box {btc_signal_class}">
+            <div class="signal-title">{btc_title}</div>
+            <div class="signal-subtitle">{btc_subtitle}</div>
+            <div class="explanation">{prediction}</div>
         </div>
         {mining_cost_signal}
         """
