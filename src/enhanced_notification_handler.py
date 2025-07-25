@@ -1206,18 +1206,17 @@ class EnhancedNotificationHandler:
         else:
             mining_cost_display = "N/A"
 
-        # 🎯 UPDATED: Format price/cost ratio with new traffic light system (1.0-4.0 range)
+        # 🎯 UPDATED: Format price/cost ratio with traffic light emoji only (range info moved to signal box)
         if price_cost_ratio != 'N/A':
             ratio_value = float(price_cost_ratio)
             if ratio_value < 1.0:
                 ratio_status = "🟢"  # Green - Below cost, buying opportunity
-                ratio_display = f"{price_cost_ratio} {ratio_status} (Below Cost - Value Zone)"
             elif 1.0 <= ratio_value <= 4.0:
                 ratio_status = "🟡"  # Yellow - Normal range
-                ratio_display = f"{price_cost_ratio} {ratio_status} (Normal Range 1.0-4.0)"
             else:  # > 4.0
                 ratio_status = "🔴"  # Red - High premium, sell signal
-                ratio_display = f"{price_cost_ratio} {ratio_status} (High Premium - Consider Selling)"
+
+            ratio_display = f"{price_cost_ratio} {ratio_status}"
         else:
             ratio_display = "N/A"
 
@@ -1286,7 +1285,7 @@ class EnhancedNotificationHandler:
             btc_subtitle = "Monitor Position"
             prediction = "Market trending but conditions not extreme yet"
 
-        # 🎯 UPDATED: Mining cost signal with new traffic light system (1.0-4.0 range)
+        # 🎯 UPDATED: Mining cost signal with proper MSTR-style colors and text hierarchy
         indicators = signal_analysis.get('indicators', {})
         price_cost_ratio = indicators.get('price_cost_ratio', 'N/A')
 
@@ -1294,18 +1293,22 @@ class EnhancedNotificationHandler:
         if price_cost_ratio != 'N/A':
             ratio_value = float(price_cost_ratio)
             if ratio_value < 1.0:
-                signal_class_mining = "buy-signal"
-                signal_text = f"🟢 Below Production Cost - Strong Value Opportunity"
+                signal_class_mining = "buy-signal"  # Light blue/teal background like MSTR
+                main_text = "Below Production Cost - Strong Value Opportunity"
+                supplement_text = "(Trading below mining cost)"
             elif 1.0 <= ratio_value <= 4.0:
-                signal_class_mining = "hold-signal"
-                signal_text = f"🟡 Normal Mining Premium (1.0-4.0x Cost)"
+                signal_class_mining = "hold-signal"  # Grey background
+                main_text = "Normal Mining Premium"
+                supplement_text = "(1.0-4.0x Cost)"
             else:  # > 4.0
-                signal_class_mining = "sell-signal"
-                signal_text = f"🔴 High Premium Above Normal Range - Consider Profit Taking"
+                signal_class_mining = "sell-signal"  # Light red/pink background
+                main_text = "High Premium - Consider Profit Taking"
+                supplement_text = "(Above normal range)"
 
             mining_cost_signal = f"""
             <div class="signal-box {signal_class_mining}" style="margin-top: 10px;">
-                <div class="signal-title" style="font-size: 14px;">{signal_text}</div>
+                <div class="signal-title" style="font-size: 14px; color: #333;">{main_text}</div>
+                <div class="signal-subtitle" style="color: #6f42c1; font-size: 12px;">{supplement_text}</div>
             </div>
             """
 
@@ -1317,7 +1320,6 @@ class EnhancedNotificationHandler:
         </div>
         {mining_cost_signal}
         """
-
     def _generate_enhanced_mstr_section_html(self, mstr_data: Dict) -> str:
         """🎯 ENHANCED: Generate complete MSTR section with NEW METRICS + options strategy"""
         if 'error' in mstr_data:
