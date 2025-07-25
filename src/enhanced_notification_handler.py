@@ -1155,6 +1155,10 @@ class EnhancedNotificationHandler:
         indicators = signal_analysis['indicators']
         signal_conditions = signal_analysis['signal_conditions']
 
+        # 🎯 NEW: Add mining cost data to signal analysis for signal boxes
+        btc_indicators = btc_data.get('indicators', {})
+        signal_analysis['indicators'] = {**indicators, **btc_indicators}  # Merge indicators
+
         return f"""
         <div class="asset-section btc-section">
             <div class="asset-header btc-header">
@@ -1168,7 +1172,7 @@ class EnhancedNotificationHandler:
 
             <div class="indicators">
                 <h3>📊 BTC Indicators</h3>
-                {self._generate_btc_indicators_html(indicators, signal_conditions, ema_200, price)}
+                {self._generate_btc_indicators_html(signal_analysis['indicators'], signal_conditions, ema_200, price)}
             </div>
 
             {self._generate_btc_signal_boxes_html(signal_analysis)}
@@ -1177,7 +1181,7 @@ class EnhancedNotificationHandler:
 
     def _generate_btc_indicators_html(self, indicators: Dict, signal_conditions: Dict, ema_200: float,
                                       price: float) -> str:
-        """Generate enhanced BTC indicators HTML with 2 decimal MVRV"""
+        """Generate enhanced BTC indicators HTML with 2 decimal MVRV + Mining Cost"""
         mvrv_info = signal_conditions.get('mvrv', {})
         rsi_info = signal_conditions.get('rsi', {})
 
@@ -1188,6 +1192,33 @@ class EnhancedNotificationHandler:
         # Price vs EMA percentage
         price_vs_ema_pct = ((price - ema_200) / ema_200 * 100) if ema_200 > 0 else 0
         ema_status = "🔴" if price_vs_ema_pct > 15 else "🟢" if price_vs_ema_pct < -15 else "🟡"
+
+        # 🎯 UPDATED: Mining Cost indicators with new 1.0-4.0 range and traffic light colors
+        mining_cost = indicators.get('mining_cost', 'N/A')
+        mining_cost_date = indicators.get('mining_cost_date', 'N/A')
+        price_cost_ratio = indicators.get('price_cost_ratio', 'N/A')
+
+        # Format mining cost display
+        if mining_cost != 'N/A':
+            mining_cost_display = f"${mining_cost:,.0f}"
+            if mining_cost_date != 'N/A':
+                mining_cost_display += f" ({mining_cost_date})"
+        else:
+            mining_cost_display = "N/A"
+
+        # 🎯 UPDATED: Format price/cost ratio with traffic light emoji only (range info moved to signal box)
+        if price_cost_ratio != 'N/A':
+            ratio_value = float(price_cost_ratio)
+            if ratio_value < 1.0:
+                ratio_status = "🟢"  # Green - Below cost, buying opportunity
+            elif 1.0 <= ratio_value <= 4.0:
+                ratio_status = "🟡"  # Yellow - Normal range
+            else:  # > 4.0
+                ratio_status = "🔴"  # Red - High premium, sell signal
+
+            ratio_display = f"{price_cost_ratio} {ratio_status}"
+        else:
+            ratio_display = "N/A"
 
         return f"""
         <div class="indicator">
@@ -1206,20 +1237,89 @@ class EnhancedNotificationHandler:
             <span>Price vs EMA:</span>
             <span class="indicator-value">{price_vs_ema_pct:+.1f}% {ema_status}</span>
         </div>
-        """
-
-    def _generate_btc_signal_boxes_html(self, signal_analysis: Dict) -> str:
-        """Generate BTC signal boxes"""
-        signal_status = signal_analysis.get('signal_status', {})
-
-        return f"""
-        <div class="signal-box hold-signal">
-            <div class="signal-title">🟡 HOLD SIGNAL 📊</div>
-            <div class="signal-subtitle">Monitor Position</div>
-            <div class="explanation">Market trending but conditions not extreme yet</div>
+        <div class="indicator">
+            <span>Average Mining Cost:</span>
+            <span class="indicator-value">{mining_cost_display}</span>
+        </div>
+        <div class="indicator">
+            <span>Price/Cost Ratio:</span>
+            <span class="indicator-value">{ratio_display}</span>
         </div>
         """
 
+    def _generate_btc_signal_boxes_html(self, signal_analysis: Dict) -> str:
+        """Generate BTC signal boxes using actual signal analysis + mining cost signal"""
+        signal_status = signal_analysis.get('signal_status', {})
+
+        # Extract real BTC signal data
+        status = signal_status.get('status', 'none')
+        message = signal_status.get('message', '')
+        emoji = signal_status.get('emoji', '🟡')
+        prediction = signal_status.get('prediction', '')
+
+        # Determine CSS class and display based on actual signal
+        if status == 'active':
+            if 'BUY' in message.upper():
+                btc_signal_class = "buy-signal"
+                btc_title = f"{emoji} BUY SIGNAL ACTIVE"
+                btc_subtitle = "Strong Buy Conditions Met"
+            elif 'SELL' in message.upper():
+                btc_signal_class = "sell-signal"
+                btc_title = f"{emoji} SELL SIGNAL ACTIVE"
+                btc_subtitle = "Strong Sell Conditions Met"
+            else:
+                btc_signal_class = "signal-active"
+                btc_title = f"{emoji} {message}"
+                btc_subtitle = "Signal Active"
+        elif status == 'weakening':
+            btc_signal_class = "signal-weakening"
+            btc_title = f"{emoji} SIGNAL WEAKENING"
+            btc_subtitle = "Conditions Deteriorating"
+        elif status == 'recently_off':
+            btc_signal_class = "signal-off"
+            btc_title = f"{emoji} SIGNAL RECENTLY OFF"
+            btc_subtitle = "Signal Ended"
+        else:  # status == 'none'
+            btc_signal_class = "hold-signal"
+            btc_title = "🟡 HOLD SIGNAL"
+            btc_subtitle = "Monitor Position"
+            prediction = "Market trending but conditions not extreme yet"
+
+        # 🎯 UPDATED: Mining cost signal with proper MSTR-style colors and text hierarchy
+        indicators = signal_analysis.get('indicators', {})
+        price_cost_ratio = indicators.get('price_cost_ratio', 'N/A')
+
+        mining_cost_signal = ""
+        if price_cost_ratio != 'N/A':
+            ratio_value = float(price_cost_ratio)
+            if ratio_value < 1.0:
+                signal_class_mining = "buy-signal"  # Light blue/teal background like MSTR
+                main_text = "Below Production Cost - Strong Value Opportunity"
+                supplement_text = "(Trading below mining cost)"
+            elif 1.0 <= ratio_value <= 4.0:
+                signal_class_mining = "hold-signal"  # Grey background
+                main_text = "Normal Mining Premium"
+                supplement_text = "(1.0-4.0x Cost)"
+            else:  # > 4.0
+                signal_class_mining = "sell-signal"  # Light red/pink background
+                main_text = "High Premium - Consider Profit Taking"
+                supplement_text = "(Above normal range)"
+
+            mining_cost_signal = f"""
+            <div class="signal-box {signal_class_mining}" style="margin-top: 10px;">
+                <div class="signal-title" style="font-size: 14px; color: #333;">{main_text}</div>
+                <div class="signal-subtitle" style="color: #6f42c1; font-size: 12px;">{supplement_text}</div>
+            </div>
+            """
+
+        return f"""
+        <div class="signal-box {btc_signal_class}">
+            <div class="signal-title">{btc_title}</div>
+            <div class="signal-subtitle">{btc_subtitle}</div>
+            <div class="explanation">{prediction}</div>
+        </div>
+        {mining_cost_signal}
+        """
     def _generate_enhanced_mstr_section_html(self, mstr_data: Dict) -> str:
         """🎯 ENHANCED: Generate complete MSTR section with NEW METRICS + options strategy"""
         if 'error' in mstr_data:

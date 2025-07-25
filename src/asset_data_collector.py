@@ -6,6 +6,13 @@ import os
 import time
 import logging
 from mvrv_scraper import MVRVScraper
+import time
+import re
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 # 🎯 NEW: Import Pi Cycle indicator
 from pi_cycle_indicator import PiCycleTopIndicator
@@ -25,6 +32,7 @@ if os.name == 'nt':  # Windows
             sys.stderr.reconfigure(encoding='utf-8', errors='ignore')
     except:
         pass  # If it fails, just continue without emoji support
+
 
 # Alternative: Replace emoji logging with simple text
 # In your logging statements, you could replace:
@@ -58,17 +66,17 @@ class HybridBTCCollector:
 
         # Initialize MVRV scraper
         self.mvrv_scraper = MVRVScraper()
-        
+
         # 🎯 NEW: Initialize Pi Cycle indicator
         self.pi_cycle_indicator = PiCycleTopIndicator(polygon_api_key=self.api_key)
 
     def get_btc_data(self) -> Dict:
         """
-        🎯 ENHANCED: Get complete BTC data: Live price + Historical indicators + MVRV + Pi Cycle
-        Returns dict with: price, weekly_rsi, ema_200, mvrv, pi_cycle, price_source
+        🎯 ENHANCED: Get complete BTC data: Live price + Historical indicators + MVRV + Pi Cycle + Mining Cost
+        Returns dict with: price, weekly_rsi, ema_200, mvrv, pi_cycle, mining_cost, price_source
         """
         try:
-            logging.info("🎯 Starting ENHANCED HYBRID BTC data collection with Pi Cycle...")
+            logging.info("🎯 Starting ENHANCED HYBRID BTC data collection with Pi Cycle + Mining Cost...")
 
             # 🎯 Get LIVE BTC price from CoinGecko (or fallback to Polygon yesterday)
             price_result = self.get_live_btc_price_with_fallback()
@@ -114,7 +122,7 @@ class HybridBTCCollector:
             # 🎯 NEW: Get Pi Cycle Top indicator data
             logging.info("🥧 Collecting Pi Cycle Top indicator data...")
             pi_cycle_data = self.pi_cycle_indicator.get_pi_cycle_analysis(current_btc_price=current_price)
-            
+
             # 🎯 DEBUG: Log Pi Cycle collection status
             if pi_cycle_data.get('success'):
                 proximity_level = pi_cycle_data.get('signal_status', {}).get('proximity_level', 'UNKNOWN')
@@ -123,10 +131,24 @@ class HybridBTCCollector:
             else:
                 logging.warning(f"⚠️ Pi Cycle collection failed: {pi_cycle_data.get('error', 'Unknown error')}")
 
+            # 🎯 NEW: Get Mining Cost data
+            logging.info("⛏️ Collecting Bitcoin mining cost data...")
+            mining_cost_data = self.get_mining_cost_data()
+
+            if mining_cost_data.get('success'):
+                mining_cost = mining_cost_data.get('mining_cost', 'N/A')
+                data_date = mining_cost_data.get('data_date', 'Unknown')
+                logging.info(f"✅ Mining Cost collected: ${mining_cost:,.0f} (Date: {data_date})")
+            else:
+                mining_cost = 'N/A'
+                data_date = 'N/A'
+                logging.warning(f"⚠️ Mining Cost collection failed: {mining_cost_data.get('error', 'Unknown error')}")
+
             # 🎯 FINAL STATUS LOG
             logging.info(f"📊 Complete BTC indicators: EMA200=${daily_ema_200:,.2f}, "
-                        f"Weekly RSI={weekly_rsi:.1f}, MVRV={mvrv_value:.2f}, "
-                        f"Pi Cycle={pi_cycle_data.get('signal_status', {}).get('proximity_level', 'FAILED')}")
+                         f"Weekly RSI={weekly_rsi:.1f}, MVRV={mvrv_value:.2f}, "
+                         f"Pi Cycle={pi_cycle_data.get('signal_status', {}).get('proximity_level', 'FAILED')}, "
+                         f"Mining Cost=${mining_cost if mining_cost != 'N/A' else 'N/A'}")
 
             result = {
                 'success': True,
@@ -138,10 +160,12 @@ class HybridBTCCollector:
                 'weekly_rsi': weekly_rsi,
                 'mvrv': mvrv_value,
                 'pi_cycle': pi_cycle_data,  # 🎯 NEW: Include Pi Cycle data
-                'source': f'{price_source} + polygon_historical + tradingview + pi_cycle'
+                'mining_cost': mining_cost,  # 🎯 NEW: Include Mining Cost
+                'mining_cost_date': data_date,  # 🎯 NEW: Include data date
+                'source': f'{price_source} + polygon_historical + tradingview + pi_cycle + macromicro'
             }
 
-            logging.info(f"🎉 Complete ENHANCED HYBRID BTC data collected successfully with Pi Cycle!")
+            logging.info(f"🎉 Complete ENHANCED HYBRID BTC data collected successfully with Pi Cycle + Mining Cost!")
             return result
 
         except Exception as e:
@@ -150,7 +174,9 @@ class HybridBTCCollector:
                 'success': False,
                 'error': str(e),
                 'timestamp': datetime.now(timezone.utc).isoformat(),
-                'pi_cycle': {'success': False, 'error': f'Collection failed: {str(e)}'}  # 🎯 Include failed Pi Cycle
+                'pi_cycle': {'success': False, 'error': f'Collection failed: {str(e)}'},  # 🎯 Include failed Pi Cycle
+                'mining_cost': 'N/A',  # 🎯 Include failed Mining Cost
+                'mining_cost_date': 'N/A'
             }
 
     def get_live_btc_price_with_fallback(self) -> Dict:
@@ -341,17 +367,17 @@ class HybridBTCCollector:
 
         prices_series = pd.Series(prices)
         delta = prices_series.diff().dropna()
-        
+
         gains = delta.where(delta > 0, 0)
         losses = -delta.where(delta < 0, 0)
-        
+
         # ✅ FIX: Use Wilder's exponential smoothing instead of simple average
-        avg_gain = gains.ewm(alpha=1/period, adjust=False).mean()
-        avg_loss = losses.ewm(alpha=1/period, adjust=False).mean()
-        
+        avg_gain = gains.ewm(alpha=1 / period, adjust=False).mean()
+        avg_loss = losses.ewm(alpha=1 / period, adjust=False).mean()
+
         rs = avg_gain / avg_loss
         rsi = 100 - (100 / (1 + rs))
-        
+
         return float(rsi.iloc[-1])
 
     def test_api_connection(self) -> bool:
@@ -395,6 +421,76 @@ class HybridBTCCollector:
             logging.error(f"CoinGecko connection test failed: {str(e)}")
             return False
 
+    def get_mining_cost_data(self) -> Dict:
+        """
+        Get Bitcoin average mining cost from CCAF (Cambridge Centre for Alternative Finance)
+        Returns dict with mining_cost and data_date, or N/A values if failed
+        """
+        driver = None
+        try:
+            logging.info("⛏️ Collecting Bitcoin mining cost from CCAF...")
+
+            chrome_options = Options()
+            chrome_options.add_argument('--headless')
+            chrome_options.add_argument('--no-sandbox')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument('--disable-gpu')
+            chrome_options.add_argument('--window-size=1920,1080')
+            chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+
+            driver = webdriver.Chrome(options=chrome_options)
+            driver.get("https://ccaf.io/cbnsi/cbeci/mining_map/mining_data")
+
+            # Wait for page to load
+            WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+            time.sleep(8)  # Additional wait for dynamic content
+
+            # Extract mining cost value using CCAF XPath
+            try:
+                mining_cost_element = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH,
+                                                    '//*[@id="wrap-container"]/div[3]/div/div[1]/div[1]/div/div/div[2]/div/div[2]/div/div[2]/h2'))
+                )
+                mining_cost_text = mining_cost_element.text.strip()
+                logging.info(f"📊 Raw CCAF mining cost text: '{mining_cost_text}'")
+
+                # Parse the value - remove commas, dollar signs, etc.
+                clean_text = mining_cost_text.replace(',', '').replace('$', '').replace(' ', '')
+
+                # Extract numeric value
+                value_match = re.search(r'([0-9]+\.?[0-9]*)', clean_text)
+                if value_match:
+                    mining_cost = float(value_match.group(1))
+
+                    # Validate range (10,000 to 1,500,000)
+                    if 10000 <= mining_cost <= 1500000:
+                        logging.info(f"✅ Valid CCAF mining cost extracted: ${mining_cost:,.0f}")
+                    else:
+                        logging.warning(f"⚠️ CCAF mining cost out of valid range: ${mining_cost:,.0f}")
+                        return {'mining_cost': 'N/A', 'data_date': 'CCAF Data', 'error': 'Value out of range'}
+                else:
+                    logging.warning(f"⚠️ Could not parse numeric value from CCAF: '{mining_cost_text}'")
+                    return {'mining_cost': 'N/A', 'data_date': 'CCAF Data', 'error': 'Could not parse value'}
+
+            except Exception as e:
+                logging.error(f"❌ Failed to extract CCAF mining cost: {str(e)}")
+                return {'mining_cost': 'N/A', 'data_date': 'CCAF Data', 'error': 'Element not found'}
+
+            # Small delay to be respectful to the server
+            time.sleep(2)
+
+            return {
+                'mining_cost': mining_cost,
+                'data_date': 'CCAF Data',  # Static label since no date extraction needed
+                'success': True
+            }
+
+        except Exception as e:
+            logging.error(f"❌ CCAF mining cost collection failed: {str(e)}")
+            return {'mining_cost': 'N/A', 'data_date': 'CCAF Data', 'error': str(e)}
+        finally:
+            if driver:
+                driver.quit()
 
 # Updated AssetDataCollector class for integration
 class HybridAssetDataCollector:
@@ -434,7 +530,7 @@ class HybridAssetDataCollector:
             return {'success': False, 'error': str(e)}
 
     def _collect_btc_data_hybrid(self) -> Dict:
-        """🎯 ENHANCED HYBRID: Collect Bitcoin data using CoinGecko live + Polygon historical + Pi Cycle"""
+        """🎯 ENHANCED HYBRID: Collect Bitcoin data using CoinGecko live + Polygon historical + Pi Cycle + Mining Cost"""
         btc_data = {
             'success': False,
             'type': 'crypto',
@@ -444,14 +540,14 @@ class HybridAssetDataCollector:
             'price_note': '',
             'indicators': {},
             'pi_cycle': {},  # 🎯 NEW: Initialize Pi Cycle data
-            'metadata': {'source': 'coingecko_live + polygon_historical + tradingview + pi_cycle'}
+            'metadata': {'source': 'coingecko_live + polygon_historical + tradingview + pi_cycle + macromicro'}
         }
 
         try:
             if not self.btc_collector:
                 raise Exception("Hybrid BTC collector not available")
 
-            # Get complete BTC data (live price + historical indicators + Pi Cycle)
+            # Get complete BTC data (live price + historical indicators + Pi Cycle + Mining Cost)
             hybrid_data = self.btc_collector.get_btc_data()
 
             if hybrid_data.get('success'):
@@ -461,6 +557,23 @@ class HybridAssetDataCollector:
                 btc_data['indicators']['ema_200'] = hybrid_data.get('ema_200')
                 btc_data['indicators']['weekly_rsi'] = hybrid_data.get('weekly_rsi')
                 btc_data['indicators']['mvrv'] = hybrid_data.get('mvrv')
+
+                # 🎯 NEW: Add mining cost to indicators
+                mining_cost = hybrid_data.get('mining_cost', 'N/A')
+                mining_cost_date = hybrid_data.get('mining_cost_date', 'N/A')
+
+                btc_data['indicators']['mining_cost'] = mining_cost
+                btc_data['indicators']['mining_cost_date'] = mining_cost_date
+
+                # 🎯 NEW: Calculate price/cost ratio
+                if mining_cost != 'N/A' and mining_cost > 0:
+                    price_cost_ratio = round(hybrid_data.get('price', 0) / mining_cost, 2)
+                    btc_data['indicators']['price_cost_ratio'] = price_cost_ratio
+                    logging.info(f"💰 Price/Cost Ratio calculated: {price_cost_ratio}")
+                else:
+                    btc_data['indicators']['price_cost_ratio'] = 'N/A'
+                    logging.warning("⚠️ Could not calculate Price/Cost Ratio")
+
                 btc_data['pi_cycle'] = hybrid_data.get('pi_cycle', {})  # 🎯 NEW: Include Pi Cycle data
                 btc_data['metadata']['source'] = hybrid_data.get('source')
                 btc_data['success'] = True
@@ -472,16 +585,23 @@ class HybridAssetDataCollector:
                     gap_percentage = btc_data['pi_cycle'].get('current_values', {}).get('gap_percentage', 0)
                     logging.info(f"🎯 Pi Cycle data persisted: {proximity_level} ({gap_percentage:.1f}% gap)")
                 else:
-                    logging.warning(f"⚠️ Pi Cycle data failed to persist: {btc_data['pi_cycle'].get('error', 'Unknown')}")
+                    logging.warning(
+                        f"⚠️ Pi Cycle data failed to persist: {btc_data['pi_cycle'].get('error', 'Unknown')}")
 
             else:
                 btc_data['error'] = hybrid_data.get('error', 'Unknown hybrid API error')
                 btc_data['pi_cycle'] = hybrid_data.get('pi_cycle', {'success': False, 'error': 'Collection failed'})
+                btc_data['indicators']['mining_cost'] = 'N/A'
+                btc_data['indicators']['mining_cost_date'] = 'N/A'
+                btc_data['indicators']['price_cost_ratio'] = 'N/A'
                 logging.error(f'Hybrid API error: {btc_data["error"]}')
 
         except Exception as e:
             btc_data['error'] = str(e)
             btc_data['pi_cycle'] = {'success': False, 'error': f'Collection exception: {str(e)}'}
+            btc_data['indicators']['mining_cost'] = 'N/A'
+            btc_data['indicators']['mining_cost_date'] = 'N/A'
+            btc_data['indicators']['price_cost_ratio'] = 'N/A'
             logging.error(f'Error collecting enhanced hybrid BTC data: {str(e)}')
 
         return btc_data
@@ -535,7 +655,7 @@ if __name__ == "__main__":
                 print(f"   📈 Daily EMA200: ${btc_data['ema_200']:,.2f}")
                 print(f"   📊 Weekly RSI: {btc_data['weekly_rsi']:.1f}")
                 print(f"   🔥 MVRV: {btc_data['mvrv']:.2f}")
-                
+
                 # 🎯 NEW: Show Pi Cycle data
                 pi_cycle = btc_data.get('pi_cycle', {})
                 if pi_cycle.get('success'):
@@ -544,7 +664,7 @@ if __name__ == "__main__":
                     print(f"   🥧 Pi Cycle: {proximity_level} ({gap_percentage:.1f}% gap)")
                 else:
                     print(f"   🥧 Pi Cycle: FAILED - {pi_cycle.get('error', 'Unknown error')}")
-                    
+
                 print(f"   🕐 Timestamp: {btc_data['timestamp']}")
                 print(f"   📡 Full Source: {btc_data['source']}")
 
