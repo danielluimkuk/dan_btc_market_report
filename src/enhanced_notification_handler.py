@@ -1193,7 +1193,7 @@ class EnhancedNotificationHandler:
         price_vs_ema_pct = ((price - ema_200) / ema_200 * 100) if ema_200 > 0 else 0
         ema_status = "🔴" if price_vs_ema_pct > 15 else "🟢" if price_vs_ema_pct < -15 else "🟡"
 
-        # 🎯 NEW: Mining Cost indicators
+        # 🎯 UPDATED: Mining Cost indicators with new 1.0-4.0 range and traffic light colors
         mining_cost = indicators.get('mining_cost', 'N/A')
         mining_cost_date = indicators.get('mining_cost_date', 'N/A')
         price_cost_ratio = indicators.get('price_cost_ratio', 'N/A')
@@ -1206,22 +1206,18 @@ class EnhancedNotificationHandler:
         else:
             mining_cost_display = "N/A"
 
-        # Format price/cost ratio with status
-        mining_cost_signal_text = ""
+        # 🎯 UPDATED: Format price/cost ratio with new traffic light system (1.0-4.0 range)
         if price_cost_ratio != 'N/A':
             ratio_value = float(price_cost_ratio)
             if ratio_value < 1.0:
-                ratio_status = "💎"  # Value opportunity
-                ratio_message = "Trading below production cost - strong value opportunity"
-            elif 1.0 <= ratio_value <= 3.0:
-                ratio_status = "✅"  # Normal range
-                ratio_message = "Normal trading range of 1.0-3.0"
-            else:  # > 3.0
-                ratio_status = "🔥"  # High premium
-                ratio_message = "High premium - consider profit taking"
-
-            ratio_display = f"{price_cost_ratio} {ratio_status}"
-            mining_cost_signal_text = f'<div style="font-size: 11px; color: #666; margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 4px;">Price/Cost Ratio: {price_cost_ratio} ({ratio_message})</div>'
+                ratio_status = "🟢"  # Green - Below cost, buying opportunity
+                ratio_display = f"{price_cost_ratio} {ratio_status} (Below Cost - Value Zone)"
+            elif 1.0 <= ratio_value <= 4.0:
+                ratio_status = "🟡"  # Yellow - Normal range
+                ratio_display = f"{price_cost_ratio} {ratio_status} (Normal Range 1.0-4.0)"
+            else:  # > 4.0
+                ratio_status = "🔴"  # Red - High premium, sell signal
+                ratio_display = f"{price_cost_ratio} {ratio_status} (High Premium - Consider Selling)"
         else:
             ratio_display = "N/A"
 
@@ -1250,7 +1246,6 @@ class EnhancedNotificationHandler:
             <span>Price/Cost Ratio:</span>
             <span class="indicator-value">{ratio_display}</span>
         </div>
-        {mining_cost_signal_text}
         """
 
     def _generate_btc_signal_boxes_html(self, signal_analysis: Dict) -> str:
@@ -1291,7 +1286,7 @@ class EnhancedNotificationHandler:
             btc_subtitle = "Monitor Position"
             prediction = "Market trending but conditions not extreme yet"
 
-        # Mining cost signal (your updated version)
+        # 🎯 UPDATED: Mining cost signal with new traffic light system (1.0-4.0 range)
         indicators = signal_analysis.get('indicators', {})
         price_cost_ratio = indicators.get('price_cost_ratio', 'N/A')
 
@@ -1300,13 +1295,13 @@ class EnhancedNotificationHandler:
             ratio_value = float(price_cost_ratio)
             if ratio_value < 1.0:
                 signal_class_mining = "buy-signal"
-                signal_text = f"⛏️ Below Production Cost - Strong Value Zone"
+                signal_text = f"🟢 Below Production Cost - Strong Value Opportunity"
             elif 1.0 <= ratio_value <= 4.0:
                 signal_class_mining = "hold-signal"
-                signal_text = f"⛏️ Normal Premium Range - Miners Profitable"
+                signal_text = f"🟡 Normal Mining Premium (1.0-4.0x Cost)"
             else:  # > 4.0
                 signal_class_mining = "sell-signal"
-                signal_text = f"⛏️ High Premium - Consider Profit Taking"
+                signal_text = f"🔴 High Premium Above Normal Range - Consider Profit Taking"
 
             mining_cost_signal = f"""
             <div class="signal-box {signal_class_mining}" style="margin-top: 10px;">
