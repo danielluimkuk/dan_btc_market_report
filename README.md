@@ -1,404 +1,153 @@
-# 📊 Dan's Market Monitor
+# 📊 Bitcoin Market Intelligence System
 
-An automated Azure Function application that monitors Bitcoin (BTC) and MicroStrategy (MSTR) markets, generates trading signals, and delivers comprehensive daily reports via email.
+An automated market monitoring system that tracks rare but powerful Bitcoin cycle indicators and generates actionable intelligence reports. This system focuses on **infrequent signals with high historical accuracy** rather than daily noise.
 
-## 💡 **About This Project**
+## 🎯 What This System Monitors
 
-This is a **passion-driven leisure project** born from genuine enthusiasm for Bitcoin, and public-listed company, Strategy. Developed with the invaluable assistance of **Claude AI**, this application represents the perfect synergy between human market intuition and AI-powered development capabilities.
+### Bitcoin Cycle Indicators
+- **Pi Cycle Top Indicator** - The most accurate Bitcoin cycle peak predictor (**95%+ historical accuracy**)
+  - Only triggers every 2-4 years during major cycle tops
+  - Signals when 111-day MA crosses above 2× 350-day MA
+  - Historically accurate within 3 days of major peaks (2013, 2017, 2021)
 
-What started as curiosity about Bitcoin's market cycles and Strategy's unique relationship with Bitcoin has evolved into a monitoring system that combines:
-- **Personal Trading Interest**: A deep fascination with Bitcoin's market psychology and technical patterns
-- **Strategic Analysis**: Love for options trading and volatility-based strategies  
-- **Technology Passion**: Enthusiasm for automation, cloud computing, and data-driven decision making
-- **AI Collaboration**: Leveraging Claude AI's coding expertise to bring complex ideas to life
+- **MVRV + Weekly RSI Confluence** - Rare buy/sell signal combinations
+  - Buy signals: MVRV < 1.0 + Weekly RSI < 30 (bear markets only)
+  - Sell signals: MVRV > 3.0 + Weekly RSI > 70 (bull markets only)
+  - These confluence events are **extremely rare** but historically significant
 
-This project embodies the spirit of modern development - where human creativity and market insight meet AI assistance to create tools that would have taken months to develop solo. It's not just about the code; it's about exploring markets, learning Azure cloud services, and building something genuinely useful for making informed trading decisions for myself.
+### MicroStrategy (MSTR) Analysis
+- **Ballistic Acceleration Model** - Mathematical relationship between Bitcoin and MSTR prices
+  - Based on [MicroStrategist.com research](https://microstrategist.com/ballistic.html)
+  - Formula: `ln(MSTR Price) = 51.293498 + -10.676635*ln(BTC Price) + 0.586628*ln(BTC Price)²`
+  - Identifies when MSTR trades significantly above/below its Bitcoin-correlated fair value
+  - **Options Strategy Recommendations** based on volatility and valuation confluence
 
-🔄 Core Investment Philosophy
-At its heart, this monitoring system is built on a "simple and stupid" idea: judging by past performance and the power law thesis applied to Bitcoin, there will be unavoidable overvalued and undervalued periods across Bitcoin's 4-year halving cycles. The model operates on the belief that these cycles create predictable patterns - short periods (1-3 months) where Bitcoin reaches euphoric tops, and slightly longer periods (4-6 months) where it finds despair-driven bottoms. These extreme phases present wonderful entry and exit opportunities for those patient enough to wait for clear signals. By systematically identifying when Bitcoin swings too far in either direction using technical indicators like MVRV and RSI, we can spot these cyclical turning points. This is purely for educational, entertainment, and discussion purposes - not financial advice. The system simply attempts to codify what Bitcoin's historical cycles have taught us about market psychology and timing, turning subjective pattern recognition into objective, data-driven signals.
+### Monetary Debasement Analysis
+- **"True Inflation Rate"** - 20-year M2 money supply compound annual growth rate
+  - Reveals actual monetary expansion vs. reported CPI inflation
+  - Historical M2 growth **significantly exceeds** official inflation metrics
+  - Strengthens the case for Bitcoin as a hedge against monetary debasement
 
-*"Combining human market intuition with AI development power to decode Bitcoin's mysteries and MSTR's volatility dance."*
+### Bitcoin Policy Tracking
+- **Real-time legislative monitoring** of Bitcoin strategic reserve bills across all 50 US states
+- Visual dashboard showing policy progression and adoption momentum
 
-## 🎯 Purpose & Objectives
+## 🔄 System Architecture
 
-This application aims to:
-- **Automate Market Analysis**: Monitor BTC and MSTR prices with advanced technical indicators
-- **Generate Trading Signals**: Provide buy/sell signals based on proven technical analysis methods
-- **Options Strategy Guidance**: Recommend MSTR options strategies based on volatility and price analysis
-- **Daily Reporting**: Send formatted HTML email reports with actionable insights
-- **Historical Tracking**: Store and analyze historical market data for trend analysis
-
-## 🏗️ System Architecture
-
+### Data Sources & Processing
 ```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                            Azure Function App (Timer Trigger)                   │
-│                                 Runs Daily at 9:21 AM                          │
-└─────────────────────┬───────────────────────────────────────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           Asset Data Collection Layer                           │
-├─────────────────────┬───────────────────────┬───────────────────────────────────┤
-│   BTC Data Collector│    MSTR Analyzer      │       MVRV Scraper               │
-│   ┌─────────────────┴┐   ┌─────────────────┴┐   ┌─────────────────────────────┐  │
-│   │ • Polygon.io API │   │ • Ballistic Model │   │ • TradingView Scraping      │  │
-│   │ • Price Data     │   │ • Volatility Data │   │ • Multiple Methods          │  │
-│   │ • EMA 200        │   │ • Options Analysis│   │ • Selenium + API            │  │
-│   │ • Weekly RSI     │   │ • Barchart.com    │   │ • Pattern Matching          │  │
-│   └─────────────────┬┘   └─────────────────┬┘   └─────────────────────────────┘  │
-└─────────────────────┼───────────────────────┼───────────────────────────────────┘
-                      │                       │
-                      ▼                       ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                            Analysis & Signal Generation                         │
-├─────────────────────┬───────────────────────┬───────────────────────────────────┤
-│   BTC Signal Engine │   MSTR Signal Engine  │    Data Processing Engine         │
-│   ┌─────────────────┴┐   ┌─────────────────┴┐   ┌─────────────────────────────┐  │
-│   │ • Bull/Bear Mkt  │   │ • Model vs Price  │   │ • Data Validation           │  │
-│   │ • MVRV Analysis  │   │ • IV Analysis     │   │ • Error Handling            │  │
-│   │ • RSI Signals    │   │ • Options Logic   │   │ • Alert Generation          │  │
-│   │ • State Tracking │   │ • Strategy Rec.   │   │ • Historical Comparison     │  │
-│   └─────────────────┬┘   └─────────────────┬┘   └─────────────────────────────┘  │
-└─────────────────────┼───────────────────────┼───────────────────────────────────┘
-                      │                       │
-                      ▼                       ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                          Persistence & Communication Layer                      │
-├─────────────────────┬───────────────────────┬───────────────────────────────────┤
-│  Azure Table Storage│   Email Notifications │        Alert System               │
-│  ┌─────────────────┴┐   ┌─────────────────┴┐   ┌─────────────────────────────┐  │
-│  │ • Daily Data     │   │ • HTML Reports    │   │ • Price Alerts              │  │
-│  │ • Signal State   │   │ • Multi-Recipient │   │ • Signal Changes            │  │
-│  │ • Alert History  │   │ • Mobile Friendly │   │ • Error Notifications       │  │
-│  │ • System Health  │   │ • Visual Design   │   │ • System Health             │  │
-│  └─────────────────┬┘   └─────────────────┬┘   └─────────────────────────────┘  │
-└─────────────────────┼───────────────────────┼───────────────────────────────────┘
-                      │                       │
-                      ▼                       ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              Output Delivery                                    │
-│    📧 Daily Email Reports  •  📊 Historical Analytics  •  ⚠️ Real-time Alerts   │
-└─────────────────────────────────────────────────────────────────────────────────┘
+External APIs → Data Collectors → Analyzers → Storage → Notification Engine
+     ↓              ↓             ↓          ↓            ↓
+  • CoinGecko    • Asset Data   • Signal   • Azure     • Email Reports
+  • Polygon.io   • Screenshot   • Options  • Tables    • Imgur Hosting
+  • FRED API     • Web Scraping • Pi Cycle • Cache      • Multi-recipient
+  • TradingView  • Validation   • Monetary • History   • Rich HTML
 ```
 
-## ⚡ Key Features
+### Component Breakdown
+- **Asset Data Collector**: Hybrid live/historical data aggregation
+- **Pi Cycle Indicator**: Advanced cycle top detection with gap analysis
+- **MSTR Analyzer**: Ballistic model + volatility-based options strategies  
+- **Monetary Analyzer**: FRED API integration for monetary policy insights
+- **Screenshot Automation**: Bitcoin Laws policy dashboard capture
+- **Enhanced Notifications**: Multi-format email reports with external image hosting
 
-### 🔍 **Market Monitoring**
-- **Bitcoin Analysis**: Price tracking, EMA200, Weekly RSI, MVRV ratio
-- **MSTR Analysis**: Ballistic model pricing, volatility metrics, options strategies
-- **Real-time Data**: Integration with Polygon.io API and TradingView
-- **Historical Tracking**: Persistent storage of all market data
+### Deployment Options
+- **Azure Functions**: Production cloud deployment with automatic scheduling
+- **GitHub Actions**: CI/CD integration with workflow automation  
+- **Manual Execution**: On-demand analysis for testing and development
 
-### 📈 **Signal Generation**
-- **BTC Buy/Sell Signals**: Based on MVRV < 1.0 + RSI < 30 (buy) or MVRV > 3.0 + RSI > 70 (sell)
-- **Market State Detection**: Bull/bear market identification using EMA200
-- **Signal Persistence**: 30-day grace period for signal changes
-- **MSTR Valuation**: Model price vs actual price deviation analysis
+## 📈 Signal Significance & Rarity
 
-### 📊 **Options Strategy Engine**
-- **Volatility Environment**: Low/normal/high IV classification
-- **Directional Bias**: Combines fundamental analysis with technical signals
-- **Strategy Recommendations**: Long calls/puts, premium selling, straddles
-- **Conflict Detection**: Identifies inconsistent volatility signals
+### Why These Signals Matter
 
-### 📱 **Communication System**
-- **HTML Email Reports**: Professional, mobile-responsive design
-- **Multi-recipient Support**: Send to multiple email addresses
-- **Visual Indicators**: Color-coded signals and status indicators
-- **Error Notifications**: Automatic alerts for system issues
+**Bitcoin Pi Cycle Top**: This isn't a daily trading signal—it's a **multi-year cycle indicator**. When it triggers:
+- Historical accuracy: 95%+ within 3 days of major cycle peaks
+- Last signals: March 2021 ($65k), December 2017 ($20k), November 2013 ($1.1k)
+- **Next signal could be years away** but marks generational selling opportunities
 
-## 🗂️ Component Details
+**MSTR Ballistic Model**: Identifies when MSTR significantly deviates from its mathematical relationship with Bitcoin:
+- **25%+ overvaluation**: Historically preceded major corrections
+- **20%+ undervaluation**: Marked strategic entry points for long-term holders
+- Options strategies adapt to volatility environment + directional bias
 
-### 📁 **Core Components**
+**True Inflation Rate**: Most people rely on official 2-3% CPI figures. This system calculates:
+- 20-year M2 compound annual growth rate (historically **8-12%**)
+- Reveals the **actual rate of monetary debasement**
+- Shows why traditional savings lose purchasing power to Bitcoin/assets
 
-#### `function_app.py` - Main Orchestrator
-- **Timer Trigger**: Runs daily at 9:21 AM UTC
-- **Asset Coordination**: Manages BTC and MSTR data collection
-- **Error Handling**: Comprehensive exception management
-- **Alert Generation**: Creates actionable notifications
+### Signal Frequency
+- **Pi Cycle signals**: Every 2-4 years (cycle tops only)
+- **MSTR ballistic extremes**: 2-4 times per cycle  
+- **BTC buy/sell confluence**: 1-3 times per 4-year cycle
+- **Monetary policy shifts**: Monthly updates, but major changes are rare
 
-#### `asset_data_collector.py` - BTC Data Engine
-- **Polygon.io Integration**: Professional market data API
-- **Multiple Endpoints**: Fallback mechanisms for reliability
-- **Technical Indicators**: EMA200, Weekly RSI calculation
-- **MVRV Integration**: Combines with TradingView scraping
+## ⚠️ Important Disclaimers
 
-#### `mstr_analyzer.py` - MSTR Intelligence
-- **Ballistic Model**: Mathematical relationship between BTC and MSTR prices
-- **Selenium Scraping**: Automated web data collection
-- **Volatility Analysis**: IV rank, percentile, and conflict detection
-- **Options Logic**: Sophisticated strategy recommendations
+- **Past performance does not guarantee future results**
+- **Not financial advice** - for educational and research purposes only
+- **Signals can fail** - no indicator is 100% accurate
+- **Position sizing and risk management are critical**
+- **Market conditions can change** - historical relationships may break down
 
-#### `btc_analyzer.py` - Signal Processor
-- **Market State Management**: Persistent signal tracking
-- **Condition Logic**: Multi-factor signal generation
-- **Timing Predictions**: Statistical market timing estimates
-- **State Persistence**: Azure Table Storage integration
+## 🛠️ Technical Requirements
 
-#### `data_storage.py` - Persistence Layer
-- **Azure Table Storage**: Scalable NoSQL storage
-- **Historical Analytics**: Query and analysis functions
-- **Data Quality Tracking**: Success/failure monitoring
-- **Cleanup Automation**: Retention policy management
-
-#### `enhanced_notification_handler.py` - Communication Hub
-- **HTML Generation**: Professional email templates
-- **Multi-recipient**: BCC support for privacy
-- **Visual Design**: Modern, responsive layouts
-- **Error Reporting**: Automated failure notifications
-
-### 🔧 **Supporting Modules**
-
-#### `mvrv_scraper.py` - Web Intelligence
-- **Multiple Methods**: Selenium, API interception, direct requests
-- **Fallback Chain**: Reliable data acquisition
-- **Pattern Matching**: Intelligent text parsing
-- **Respectful Scraping**: See dedicated section below
-
-## 🤝 **Respectful Web Scraping Practices**
-
-This application implements industry best practices for ethical and respectful web scraping:
-
-### ⏱️ **Rate Limiting & Delays**
-```python
-# Strategic delays between requests
-time.sleep(15)  # 15-second delays between API calls
-time.sleep(12)  # Extended waits for page loading
-```
-
-### 🔄 **Fallback Methodology**
-- **Graceful Degradation**: Multiple data collection methods prevent server overload
-- **Primary → Secondary → Tertiary**: Attempts least intrusive methods first
-- **Calculated Fallbacks**: Mathematical models when scraping fails entirely
-
-### 🎭 **User Agent Rotation**
-```python
-from fake_useragent import UserAgent
-ua = UserAgent()
-chrome_options.add_argument(f'--user-agent={ua.random}')
-```
-
-### 🚫 **Traffic Minimization**
-- **Single Daily Execution**: Only runs once per day at 9:21 AM
-- **Efficient Selectors**: Targeted XPath and CSS selectors reduce page parsing
-- **Headless Browsing**: Minimal resource consumption
-- **Session Reuse**: Maintains connections to reduce overhead
-
-### 📊 **Data Source Respect**
-- **TradingView**: Uses public chart data with appropriate delays
-- **Barchart**: Accesses only publicly available volatility metrics  
-- **MicroStrategist**: Leverages openly published ballistic model data
-- **API Priority**: Prefers official APIs (Polygon.io) over scraping when available
-
-### 🔒 **Ethical Guidelines**
-- **No Aggressive Scraping**: Never overwhelms servers with rapid requests
-- **Public Data Only**: Only accesses publicly available information
-- **Terms Compliance**: Respects robots.txt and site terms of service
-- **Fail-Safe Design**: Errors result in graceful fallbacks, not retry storms
-
-### 🛡️ **Server Protection Features**
-```python
-# Example from mstr_analyzer.py
-try:
-    # Primary method with delays
-    ballistic_data = self._get_ballistic_data_xpath(btc_price)
-    time.sleep(15)  # Rate limiting pause
-    volatility_data = self._get_volatility_data()
-except Exception:
-    # Fallback to mathematical calculation
-    model_price = self._calculate_model_price(btc_price)
-```
-
-### 📈 **Responsible Automation**
-- **Business Hours Consideration**: Runs during off-peak hours
-- **Error Handling**: Failures don't trigger aggressive retries
-- **Monitoring Integration**: Tracks scraping success without hammering endpoints
-- **Sustainable Design**: Built for long-term reliability without site disruption
-
-> **Philosophy**: We believe in being good internet citizens. Our scraping practices prioritize sustainability, respect for content providers, and minimal server impact while delivering reliable market analysis.
-
-## 📋 **Configuration Setup**
-
-### 🔑 **Required Environment Variables**
-
+### API Keys Required
 ```bash
-# Azure Storage
-AZURE_STORAGE_ACCOUNT=your_storage_account
-AZURE_STORAGE_KEY=your_storage_key
-
-# Market Data API
-POLYGON_API_KEY=your_polygon_api_key
-
-# Email Configuration
-SMTP_SERVER=smtp.gmail.com
-SMTP_PORT=587
-EMAIL_USER=your_email@gmail.com
+# Core Data (Required)
+POLYGON_API_KEY=your_polygon_key
+EMAIL_USER=your_email
 EMAIL_PASSWORD=your_app_password
 
-# Recipients (comma-separated for multiple)
-RECIPIENT_EMAILS=trader1@email.com,trader2@email.com,analyst@email.com
+# Enhanced Features (Optional)
+FRED_API_KEY=your_fred_key        # Monetary analysis
+IMGUR_CLIENT_ID=your_imgur_id     # Image hosting
+AZURE_STORAGE_ACCOUNT=account     # Data persistence
+AZURE_STORAGE_KEY=key             # Cloud storage
 ```
 
-### 🚀 **Deployment Steps**
+### Environment Setup
+- **Python 3.8+** with pandas, selenium, requests
+- **Chrome/ChromeDriver** for web scraping
+- **Azure Functions Core Tools** (for cloud deployment)
 
-1. **Azure Function App Setup**
-   ```bash
-   func init YourFunctionApp --python
-   func new --name AssetMonitor --template "Timer trigger"
-   ```
+## 📧 Report Features
 
-2. **Dependencies Installation**
-   ```bash
-   pip install -r requirements.txt
-   ```
+### Email Intelligence Reports
+- **Multi-recipient support** with BCC privacy
+- **Rich HTML formatting** with charts and visual indicators
+- **External image hosting** (Imgur) for Gmail compatibility
+- **Mobile-responsive design** for phone/tablet viewing
 
-3. **Environment Configuration**
-   - Set all required environment variables in Azure portal
-   - Configure managed identity for Azure Storage access
-   - Set up application insights for monitoring
+### Content Sections
+1. **Executive Summary** - Key signals and market status
+2. **Bitcoin Analysis** - Price vs EMA200, MVRV, RSI, Pi Cycle status
+3. **MSTR Intelligence** - Ballistic model deviation + options strategy
+4. **Pi Cycle Deep Dive** - Gap analysis, convergence trend, interpretation
+5. **Monetary Policy** - True inflation rate, Fed balance sheet, M2 growth
+6. **Bitcoin Laws** - Live policy dashboard screenshot
+7. **Investment Tools Comparison** - Traditional assets vs. true inflation
 
-4. **Chrome Driver Setup** (for Azure Functions)
-   ```bash
-   # Add to requirements.txt
-   selenium>=4.15.0
-   webdriver-manager>=3.8.0
-   ```
+## 🎓 Educational Value
 
-## 📊 **Signal Logic Deep Dive**
+This system teaches you to **think in cycles, not daily candles**. Instead of reacting to every price movement, it helps you:
 
-### 🪙 **Bitcoin Trading Signals**
+- **Recognize generational opportunities** when rare signal confluence occurs
+- **Understand monetary debasement** and its impact on purchasing power  
+- **Evaluate MSTR as a Bitcoin strategy** beyond simple NAV calculations
+- **Track policy adoption momentum** for long-term Bitcoin thesis validation
 
-#### **Buy Signal Conditions (Bear Market)**
-```
-Conditions: BTC Price < EMA200 AND MVRV < 1.0 AND Weekly RSI < 30
-Expected Outcome: Market bottom within 4-6 months
-Confidence: High (historical accuracy ~85%)
-```
-
-#### **Sell Signal Conditions (Bull Market)**
-```
-Conditions: BTC Price > EMA200 AND MVRV > 3.0 AND Weekly RSI > 70
-Expected Outcome: Market top within 1-3 months  
-Confidence: High (historical accuracy ~80%)
-```
-
-#### **Signal State Management**
-- **Activation**: Both conditions must be met simultaneously
-- **Persistence**: Signals remain active until conditions fail for 30+ days
-- **Grace Period**: Temporary condition failures don't immediately deactivate signals
-
-### 📈 **MSTR Analysis Framework**
-
-#### **Ballistic Model Formula**
-```
-ln(MSTR_Price) = 51.293498 + (-10.676635 * ln(BTC_Price)) + (0.586628 * ln(BTC_Price)²)
-```
-
-#### **Valuation Thresholds**
-- **Severely Undervalued**: -25% or below model price
-- **Undervalued**: -15% to -25% below model price
-- **Fair Valued**: -15% to +15% of model price
-- **Overvalued**: +15% to +25% above model price
-- **Severely Overvalued**: +25% or above model price
-
-#### **Options Strategy Matrix**
-
-| Volatility Environment | Directional Bias | Recommended Strategy |
-|------------------------|------------------|----------------------|
-| Low IV (<25%) | Bullish | Long Calls |
-| Low IV (<25%) | Bearish | Long Puts |
-| Low IV (<25%) | Neutral | Long Straddle |
-| High IV (>75%) | Bullish | Short Puts |
-| High IV (>75%) | Bearish | Short Calls |
-| High IV (>75%) | Neutral | Short Strangle |
-| Normal IV (25-75%) | Strong Signal | Moderate Strategies |
-| Normal IV (25-75%) | Weak Signal | No Preference |
-
-## 🔍 **Data Sources & APIs**
-
-### 📊 **Market Data Providers (API-First Approach)**
-- **Polygon.io**: Professional BTC price and volume data via official API
-- **TradingView**: MVRV ratio via respectful scraping (multiple fallback methods)
-- **MicroStrategist.com**: MSTR ballistic model data via targeted extraction
-- **Barchart.com**: MSTR options volatility metrics via ethical scraping
-
-### 🛡️ **Data Collection Ethics**
-- **API Priority**: Always prefer official APIs over scraping when available
-- **Respectful Scraping**: See dedicated section above for our ethical practices
-- **Fallback Strategy**: Mathematical models ensure service continuity without server burden
-- **Rate Limiting**: Appropriate delays between all external requests
-
-### 🗄️ **Storage Architecture**
-- **assetdata**: Daily price and indicator storage
-- **alerthistory**: Historical alert tracking
-- **systemhealth**: Application performance monitoring
-- **Retention**: 90-day automatic cleanup
-
-## 📧 **Email Report Features**
-
-### 🎨 **Visual Design**
-- **Responsive Layout**: Mobile and desktop optimized
-- **Color Coding**: Intuitive signal visualization
-- **Professional Styling**: Modern gradient backgrounds
-- **Accessibility**: High contrast and semantic markup
-
-### 📱 **Content Structure**
-- **Executive Summary**: Key signals at the top
-- **Detailed Analysis**: Technical indicators and reasoning
-- **Signal History**: Days active and timing predictions
-- **Options Strategies**: Actionable trading recommendations
-
-## 🚨 **Error Handling & Monitoring**
-
-### ⚠️ **Failure Scenarios**
-- **API Limits**: Automatic fallback to alternative endpoints
-- **Scraping Failures**: Multiple method attempts with graceful degradation
-- **Network Issues**: Retry logic with exponential backoff
-- **Data Validation**: Range checking and anomaly detection
-- **Rate Limiting**: Respectful delays prevent IP blocking and ensure long-term reliability
-
-### 📊 **Health Monitoring**
-- **Success Rates**: Daily collection success tracking
-- **Performance Metrics**: Response time and reliability monitoring
-- **Alert Thresholds**: Automatic notifications for failures
-- **Data Quality**: Validation and consistency checks
-
-## 🔄 **Maintenance & Updates**
-
-### 📅 **Regular Tasks**
-- **API Key Rotation**: Quarterly security updates
-- **Dependency Updates**: Monthly package updates
-- **Performance Review**: Weekly success rate analysis
-- **Signal Accuracy**: Monthly historical validation
-
-### 🔧 **Troubleshooting**
-- **Common Issues**: Network timeouts, API rate limits
-- **Debug Mode**: Verbose logging for development
-- **Test Functions**: Manual trigger capabilities
-- **Recovery Procedures**: Documented incident response
-
-## 📚 **Technical Stack**
-
-- **Runtime**: Azure Functions (Python 3.9+)
-- **Storage**: Azure Table Storage
-- **Web Scraping**: Selenium with Chrome WebDriver
-- **Data Processing**: Pandas, NumPy
-- **Email**: SMTP with HTML templates
-- **APIs**: Polygon.io, TradingView, Barchart
-- **Monitoring**: Azure Application Insights
+The most valuable investors **wait patiently** for high-conviction signals rather than constantly trading noise. This system helps identify when those rare moments arrive.
 
 ---
 
-## 🚀 **Getting Started**
+## 🔗 Related Resources
 
-1. **Clone Repository**: `git clone <repository-url>`
-2. **Install Dependencies**: `pip install -r requirements.txt`
-3. **Configure Environment**: Set up Azure resources and API keys
-4. **Deploy Function**: Use Azure CLI or VS Code extension
-5. **Test Execution**: Trigger function manually to verify setup
-6. **Monitor Logs**: Check Application Insights for successful execution
+- [MicroStrategist.com](https://microstrategist.com/) - MSTR Ballistic Model & Analysis
+- [Strategy.com](https://www.strategy.com/) - MSTR Metrics & NAV Data  
+- [FRED Economic Data](https://fred.stlouisfed.org/) - Federal Reserve Monetary Data
+- [BitcoinLaws.io](https://bitcoinlaws.io/) - US Bitcoin Policy Tracker
 
----
+--
 
-*Built with ❤️ for automated market analysis and informed trading decisions.*
+*Remember: The best signals are the rarest ones. This system helps you prepare for when they finally arrive.*
