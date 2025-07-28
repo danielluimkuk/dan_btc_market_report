@@ -443,7 +443,7 @@ class HybridBTCCollector:
 
             # Wait for page to load
             WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
-            time.sleep(8)  # Additional wait for dynamic content
+            time.sleep(15)  # Additional wait for dynamic content
 
             # Extract mining cost value using CCAF XPath
             try:
