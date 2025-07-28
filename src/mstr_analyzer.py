@@ -18,6 +18,8 @@ from fake_useragent import UserAgent
 import logging
 from typing import Dict, Optional
 from datetime import datetime, timezone
+from json_data_manager import DataManager
+from pbyd_calculator import PBYDCalculator
 
 # 🎯 NEW: Import the new scrapers
 from mstr_rank_data import get_mstr_rank
@@ -875,6 +877,7 @@ def collect_mstr_data(btc_price: float) -> Dict:
                 logging.warning(f"⚠️ MSTR metrics scraper error: {str(e)}")
 
             # 🎯 NEW: Calculate BTC Stress Price
+            # 🎯 NEW: Calculate BTC Stress Price
             logging.info("💥 Calculating BTC stress price...")
             try:
                 debt_ratio = mstr_data['indicators']['debt_ratio']
@@ -889,6 +892,15 @@ def collect_mstr_data(btc_price: float) -> Dict:
             except Exception as e:
                 mstr_data['indicators']['btc_stress_price'] = 'N/A'
                 logging.warning(f"⚠️ BTC stress price calculation error: {str(e)}")
+
+            # 🎯 NEW: Calculate P/BYD (365d)
+            pbyd_result = _calculate_pbyd_for_mstr(mstr_data)
+            mstr_data['indicators']['pbyd_365d'] = pbyd_result['value']
+
+            if pbyd_result['reason']:
+                logging.warning(f"⚠️ P/BYD: {pbyd_result['reason']}")
+            else:
+                logging.info(f"✅ P/BYD (365d): {pbyd_result['value']}")
 
             return mstr_data
 
@@ -907,6 +919,35 @@ def collect_mstr_data(btc_price: float) -> Dict:
             'timestamp': datetime.now(timezone.utc).isoformat(),
             'error': str(e)
         }
+
+
+def _calculate_pbyd_for_mstr(mstr_data: Dict) -> Dict:
+    """Calculate P/BYD using current MSTR data and historical BTC holdings"""
+    try:
+        indicators = mstr_data.get('indicators', {})
+        current_btc_holdings = indicators.get('bitcoin_count', 0)
+        current_mnav = indicators.get('mnav', 0)
+
+        if current_btc_holdings == 'N/A' or current_btc_holdings <= 0:
+            return {'value': 'N/A', 'reason': 'Missing current BTC holdings'}
+
+        if current_mnav == 'N/A' or current_mnav <= 0:
+            return {'value': 'N/A', 'reason': 'Missing mNAV data'}
+
+        data_manager = DataManager()
+        btc_data = data_manager.get_btc_holdings_data()
+
+        if not btc_data:
+            return {'value': 'N/A', 'reason': 'No historical BTC data available'}
+
+        return PBYDCalculator.calculate_full_pbyd(
+            current_btc_holdings=float(current_btc_holdings),
+            mnav=float(current_mnav),
+            btc_data=btc_data
+        )
+
+    except Exception as e:
+        return {'value': 'N/A', 'reason': f'Calculation error: {str(e)}'}
 
 
 if __name__ == "__main__":
