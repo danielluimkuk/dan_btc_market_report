@@ -231,7 +231,28 @@ class MSTRMetricsScraper:
                 logging.info("🧹 Cleaning up browser...")
                 driver.quit()
 
+    def _auto_save_btc_holdings_if_changed(self, current_btc_count: float) -> None:
+        """Auto-save BTC holdings to JSON if they changed from last entry"""
+        try:
+            data_manager = DataManager()
+            btc_data = data_manager.get_btc_holdings_data()
 
+            current_btc_int = int(current_btc_count)
+            today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+
+            if btc_data:
+                latest_date = max(btc_data.keys())
+                latest_btc = btc_data[latest_date].get('btc', 0)
+
+                if current_btc_int != latest_btc:
+                    data_manager.add_btc_holdings(today, current_btc_int)
+                    logging.info(f"🎯 Auto-saved BTC holdings: {latest_btc:,} → {current_btc_int:,}")
+            else:
+                data_manager.add_btc_holdings(today, current_btc_int)
+                logging.info(f"🎯 First BTC holdings entry: {current_btc_int:,}")
+
+        except Exception as e:
+            logging.error(f"❌ Error auto-saving BTC holdings: {str(e)}")
 
 
 def get_mstr_metrics(max_attempts: int = 2) -> Dict:
@@ -268,30 +289,6 @@ def get_mstr_metrics(max_attempts: int = 2) -> Dict:
         'attempts_made': max_attempts,
         'timestamp': datetime.now(timezone.utc).isoformat()
     }
-
-
-def _auto_save_btc_holdings_if_changed(self, current_btc_count: float) -> None:
-    """Auto-save BTC holdings to JSON if they changed from last entry"""
-    try:
-        data_manager = DataManager()
-        btc_data = data_manager.get_btc_holdings_data()
-
-        current_btc_int = int(current_btc_count)
-        today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
-
-        if btc_data:
-            latest_date = max(btc_data.keys())
-            latest_btc = btc_data[latest_date].get('btc', 0)
-
-            if current_btc_int != latest_btc:
-                data_manager.add_btc_holdings(today, current_btc_int)
-                logging.info(f"🎯 Auto-saved BTC holdings: {latest_btc:,} → {current_btc_int:,}")
-        else:
-            data_manager.add_btc_holdings(today, current_btc_int)
-            logging.info(f"🎯 First BTC holdings entry: {current_btc_int:,}")
-
-    except Exception as e:
-        logging.error(f"❌ Error auto-saving BTC holdings: {str(e)}")
 
 
 if __name__ == "__main__":
