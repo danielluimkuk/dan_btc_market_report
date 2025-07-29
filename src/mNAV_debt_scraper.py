@@ -15,6 +15,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from typing import Dict
 from datetime import datetime, timezone
+from json_data_manager import DataManager
 import re
 
 # Fix Windows console encoding
@@ -185,15 +186,17 @@ class MSTRMetricsScraper:
                 if value_match:
                     btc_count = float(value_match.group(1))
                     # Bitcoin count should be in hundreds of thousands
-                    if 100000 <= btc_count <= 1000000:
+                    if 100000 <= btc_count <= 2000000:
                         metrics['bitcoin_count'] = btc_count
                         logging.info(f"✅ Bitcoin Count extracted: {btc_count}")
+                        self._auto_save_btc_holdings_if_changed(btc_count)
                     else:
                         logging.warning(f"⚠️ Bitcoin Count out of range: {btc_count}")
                         # If it's smaller, might still be valid (could be formatted differently)
                         if 100 <= btc_count <= 99999:
                             metrics['bitcoin_count'] = btc_count
                             logging.info(f"✅ Bitcoin Count extracted (alt range): {btc_count}")
+                            self._auto_save_btc_holdings_if_changed(btc_count)
                 else:
                     logging.warning(f"⚠️ Could not parse Bitcoin Count from: '{value_text}'")
 
@@ -221,10 +224,35 @@ class MSTRMetricsScraper:
                 'error': str(e),
                 'timestamp': datetime.now(timezone.utc).isoformat()
             }
+
+
         finally:
             if driver:
                 logging.info("🧹 Cleaning up browser...")
                 driver.quit()
+
+    def _auto_save_btc_holdings_if_changed(self, current_btc_count: float) -> None:
+        """Auto-save BTC holdings to JSON if they changed from last entry"""
+        try:
+            data_manager = DataManager()
+            btc_data = data_manager.get_btc_holdings_data()
+
+            current_btc_int = int(current_btc_count)
+            today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+
+            if btc_data:
+                latest_date = max(btc_data.keys())
+                latest_btc = btc_data[latest_date].get('btc', 0)
+
+                if current_btc_int != latest_btc:
+                    data_manager.add_btc_holdings(today, current_btc_int)
+                    logging.info(f"🎯 Auto-saved BTC holdings: {latest_btc:,} → {current_btc_int:,}")
+            else:
+                data_manager.add_btc_holdings(today, current_btc_int)
+                logging.info(f"🎯 First BTC holdings entry: {current_btc_int:,}")
+
+        except Exception as e:
+            logging.error(f"❌ Error auto-saving BTC holdings: {str(e)}")
 
 
 def get_mstr_metrics(max_attempts: int = 2) -> Dict:

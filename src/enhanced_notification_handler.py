@@ -30,6 +30,7 @@ class EnhancedNotificationHandler:
         self.smtp_port = int(os.getenv('SMTP_PORT', '587'))
         self.email_user = os.getenv('EMAIL_USER')
         self.email_password = os.getenv('EMAIL_PASSWORD')
+        self._current_message_date = None
 
         # Support multiple recipients
         self.recipients = self._parse_recipients()
@@ -204,6 +205,7 @@ class EnhancedNotificationHandler:
                     <h1>📊 Dan's Market Report</h1>
                     <h2>📅 {report_date}</h2>
                 </div>
+                {self._generate_message_section_html()} 
 
                 <div class="assets-grid">
                     {self._generate_enhanced_btc_section_html(btc_data)}
@@ -254,6 +256,7 @@ class EnhancedNotificationHandler:
                     <h1>📊 Dan's Market Report</h1>
                     <h2>📅 {report_date}</h2>
                 </div>
+                {self._generate_message_section_html()} 
 
                 <div class="assets-grid">
                     {self._generate_enhanced_btc_section_html(btc_data)}
@@ -1402,7 +1405,7 @@ class EnhancedNotificationHandler:
         # 🎯 NEW: Format display values
         rank_display = f"{rank}" if rank != 'N/A' else "N/A"
         mnav_display = f"{mnav}" if mnav != 'N/A' else "N/A"
-        # --- MODIFICATION ---
+        pbyd_365d = indicators.get('pbyd_365d', 'N/A')
         pref_nav_display = f"{pref_nav_ratio:.0f}%" if pref_nav_ratio != 'N/A' else "N/A"
         debt_nav_display = f"{debt_nav_ratio:.0f}%" if debt_nav_ratio != 'N/A' else "N/A"
         # --- END MODIFICATION ---
@@ -1425,6 +1428,10 @@ class EnhancedNotificationHandler:
         <div class="indicator">
             <span>mNAV Ratio:</span>
             <span class="indicator-value">{mnav_display}</span>
+        </div>
+        <div class="indicator">
+            <span>P/BYD (365d):</span>
+            <span class="indicator-value">{pbyd_365d}</span>
         </div>
         <div class="indicator">
             <span>Pref/Bitcoin NAV:</span>
@@ -1777,3 +1784,26 @@ class EnhancedNotificationHandler:
         except Exception as e:
             logging.error(f"Failed to send email: {str(e)}")
             raise
+
+    def _generate_message_section_html(self) -> str:
+        try:
+            from json_data_manager import DataManager
+            data_manager = DataManager()
+            message = data_manager.get_latest_undisplayed_message()
+
+            if not message:
+                return ""
+
+            self._current_message_date = message['date']
+            return f'''<div style="background: linear-gradient(135deg, #e3f2fd, #bbdefb); border: 2px solid #2196f3; border-radius: 10px; padding: 20px; margin: 20px 25px;"><div style="display: flex; align-items: center; margin-bottom: 15px;"><span style="font-size: 24px; margin-right: 15px;">📢</span><span style="font-size: 18px; font-weight: 600; color: #1565c0;">Message</span><span style="font-size: 14px; color: #666; margin-left: auto;">{message['date']}</span></div><div style="color: #333; font-size: 15px; line-height: 1.5;">{message['content']}</div></div>'''
+        except:
+            return ""
+
+    def _mark_message_as_displayed(self) -> None:
+        try:
+            if hasattr(self, '_current_message_date') and self._current_message_date:
+                from json_data_manager import DataManager
+                DataManager().mark_message_displayed(self._current_message_date)
+                self._current_message_date = None
+        except:
+            pass
