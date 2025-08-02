@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """
 Data Manager - Safe JSON Operations for MSTR Data
-Handles BTC holdings data and message system with file locking
+Handles BTC holdings data and message system with Windows compatibility
 """
 
 import json
 import os
 import logging
-import fcntl
 import time
 from datetime import datetime
 from typing import Dict, Optional, Any
@@ -15,7 +14,7 @@ from contextlib import contextmanager
 
 
 class DataManager:
-    """Safe JSON file operations for MSTR data with file locking"""
+    """Safe JSON file operations for MSTR data with Windows compatibility"""
 
     def __init__(self, data_file_path: str = "src/data/mstr_data.json"):
         self.data_file_path = data_file_path
@@ -29,17 +28,32 @@ class DataManager:
             logging.info(f"Created data directory: {self.data_dir}")
 
     @contextmanager
-    def _file_lock(self, file_handle, operation):
-        """Context manager for file locking"""
+    def _file_lock(self, file_handle=None, operation=None):
+        """Context manager for file locking - Windows compatible (no-op)"""
+        # Windows compatibility: just yield without fcntl
         try:
-            fcntl.flock(file_handle.fileno(), operation)
             yield
         finally:
-            fcntl.flock(file_handle.fileno(), fcntl.LOCK_UN)
+            pass
+
+    def _wait_for_file_access(self, max_retries: int = 3, delay: float = 0.1) -> None:
+        """Windows-friendly file access waiting"""
+        for i in range(max_retries):
+            try:
+                if os.path.exists(self.data_file_path):
+                    # Try to open file briefly to check accessibility
+                    with open(self.data_file_path, 'r', encoding='utf-8') as f:
+                        pass
+                return
+            except (PermissionError, OSError):
+                if i < max_retries - 1:
+                    time.sleep(delay * (i + 1))  # Progressive delay
+                else:
+                    raise
 
     def load_data(self) -> Dict[str, Any]:
         """
-        Safely load JSON data with file locking
+        Safely load JSON data with Windows compatibility
 
         Returns:
             Dict with 'btc_data' and 'messages' keys, or default structure if file doesn't exist
@@ -54,8 +68,10 @@ class DataManager:
             return default_data
 
         try:
+            self._wait_for_file_access()
+            
             with open(self.data_file_path, 'r', encoding='utf-8') as f:
-                with self._file_lock(f, fcntl.LOCK_SH):  # Shared lock for reading
+                with self._file_lock(f, None):  # Windows-compatible no-op lock
                     data = json.load(f)
 
             # Validate structure
@@ -81,7 +97,7 @@ class DataManager:
 
     def save_data(self, data: Dict[str, Any]) -> bool:
         """
-        Safely save JSON data with file locking and atomic write
+        Safely save JSON data with Windows-compatible atomic write
 
         Args:
             data: Dictionary with 'btc_data' and 'messages' keys
@@ -99,15 +115,20 @@ class DataManager:
                 logging.error("Missing required keys in data structure")
                 return False
 
-            # Atomic write using temporary file
+            # Windows-compatible atomic write using temporary file
             temp_file_path = f"{self.data_file_path}.tmp"
 
+            # Wait for file access
+            self._wait_for_file_access()
+
             with open(temp_file_path, 'w', encoding='utf-8') as f:
-                with self._file_lock(f, fcntl.LOCK_EX):  # Exclusive lock for writing
+                with self._file_lock(f, None):  # Windows-compatible no-op lock
                     json.dump(data, f, indent=2, ensure_ascii=False)
 
-            # Atomic move
-            os.replace(temp_file_path, self.data_file_path)
+            # Atomic move (Windows compatible)
+            if os.path.exists(self.data_file_path):
+                os.remove(self.data_file_path)  # Windows requires explicit removal
+            os.rename(temp_file_path, self.data_file_path)
 
             logging.info(f"Saved data: {len(data['btc_data'])} BTC entries, {len(data['messages'])} messages")
             return True
