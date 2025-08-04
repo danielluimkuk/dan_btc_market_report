@@ -69,7 +69,7 @@ class DataManager:
 
         try:
             self._wait_for_file_access()
-            
+
             with open(self.data_file_path, 'r', encoding='utf-8') as f:
                 with self._file_lock(f, None):  # Windows-compatible no-op lock
                     data = json.load(f)
