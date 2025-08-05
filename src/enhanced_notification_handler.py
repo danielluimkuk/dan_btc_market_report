@@ -1405,7 +1405,11 @@ class EnhancedNotificationHandler:
         # 🎯 NEW: Format display values
         rank_display = f"{rank}" if rank != 'N/A' else "N/A"
         mnav_display = f"{mnav}" if mnav != 'N/A' else "N/A"
+
         pbyd_365d = indicators.get('pbyd_365d', 'N/A')
+        pbyd_90d = indicators.get('pbyd_90d', 'N/A')
+        pbyd_30d = indicators.get('pbyd_30d', 'N/A')
+
         pref_nav_display = f"{pref_nav_ratio:.0f}%" if pref_nav_ratio != 'N/A' else "N/A"
         debt_nav_display = f"{debt_nav_ratio:.0f}%" if debt_nav_ratio != 'N/A' else "N/A"
         # --- END MODIFICATION ---
@@ -1428,6 +1432,14 @@ class EnhancedNotificationHandler:
         <div class="indicator">
             <span>mNAV Ratio:</span>
             <span class="indicator-value">{mnav_display}</span>
+        </div>
+        <div class="indicator">
+            <span>P/BYD (30d):</span>
+            <span class="indicator-value">{pbyd_30d}</span>
+        </div>
+        <div class="indicator">
+            <span>P/BYD (90d):</span>
+            <span class="indicator-value">{pbyd_90d}</span>
         </div>
         <div class="indicator">
             <span>P/BYD (365d):</span>
