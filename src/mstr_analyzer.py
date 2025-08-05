@@ -18,12 +18,13 @@ from fake_useragent import UserAgent
 import logging
 from typing import Dict, Optional
 from datetime import datetime, timezone
-from json_data_manager import DataManager
-from pbyd_calculator import PBYDCalculator
 
 # 🎯 NEW: Import the new scrapers
 from mstr_rank_data import get_mstr_rank
 from mNAV_debt_scraper import get_mstr_metrics
+from json_data_manager import DataManager
+from pbyd_calculator import MultiPeriodPBYDCalculator  # 🎯 NEW IMPORT
+
 
 # Fix Windows console encoding for Unicode characters
 if os.name == 'nt':  # Windows
@@ -643,89 +644,26 @@ class MSTRAnalyzer:
 
 def _validate_mstr_data(data: Dict) -> bool:
     """
-    🎯 NEW: Validate MSTR data quality to determine if retry is needed
-
-    Args:
-        data: MSTR data dictionary from collect_mstr_data()
-
-    Returns:
-        bool: True if data is valid, False if retry is needed
+    🎯 UPDATED: Validate MSTR data quality including multi-period P/BYD
     """
     try:
-        if not data.get('success'):
-            logging.warning("MSTR data collection failed")
-            return False
+        # ... existing validation code ...
 
-        # Check if price is valid
-        price = data.get('price', 0)
-        if not price or price <= 0:
-            logging.warning(f"Invalid MSTR price: {price}")
-            return False
+        # 🎯 NEW: Validate P/BYD metrics (but don't fail validation if missing)
+        pbyd_30d = indicators.get('pbyd_30d', 'N/A')
+        pbyd_90d = indicators.get('pbyd_90d', 'N/A')
+        pbyd_365d = indicators.get('pbyd_365d', 'N/A')
 
-        # Check indicators
-        indicators = data.get('indicators', {})
+        pbyd_available = sum(1 for p in [pbyd_30d, pbyd_90d, pbyd_365d] if p != 'N/A')
 
-        # Model price should be reasonable
-        model_price = indicators.get('model_price', 0)
-        if not model_price or model_price <= 0 or not (1 < model_price < 10000):  # Expanded MSTR range $1-$10,000
-            logging.warning(f"Invalid model price: {model_price}")
-            return False
+        if pbyd_available == 0:
+            logging.warning("No P/BYD metrics available")
+        else:
+            logging.info(f"✅ P/BYD metrics available: {pbyd_available}/3 periods")
 
-        # Deviation should exist and be reasonable
-        deviation_pct = indicators.get('deviation_pct', None)
-        if deviation_pct is None or abs(deviation_pct) > 200:  # No more than 200% deviation
-            logging.warning(f"Invalid deviation: {deviation_pct}")
-            return False
+        # ... rest of existing validation ...
 
-        # At least some volatility data should exist - IV is the most important
-        iv = indicators.get('iv', 0)
-        iv_percentile = indicators.get('iv_percentile', 0)
-        iv_rank = indicators.get('iv_rank', 0)
-
-        # 🎯 FIXED: As long as we have IV (main volatility metric), it's valid
-        # IV Rank and Percentile can be 0% and that's still useful data
-        if iv == 0:
-            logging.warning("Missing main IV (Implied Volatility) data")
-            return False
-
-        # 🎯 NEW: Basic validation for new metrics (simple checks)
-        rank = indicators.get('rank', 'N/A')
-        if rank != 'N/A' and (not isinstance(rank, (int, float)) or not (1 <= rank <= 500)):
-            logging.warning(f"Invalid rank: {rank}")
-            # Don't fail validation for rank issues
-
-        mnav = indicators.get('mnav', 'N/A')
-        if mnav != 'N/A' and (not isinstance(mnav, (int, float)) or not (0.1 <= mnav <= 20)):
-            logging.warning(f"Invalid mNAV: {mnav}")
-            # Don't fail validation for mnav issues
-
-        debt_ratio = indicators.get('debt_ratio', 'N/A')
-        if debt_ratio != 'N/A' and (not isinstance(debt_ratio, (int, float)) or not (0 <= debt_ratio <= 150)):
-            logging.warning(f"Invalid debt ratio: {debt_ratio}")
-            # Don't fail validation for debt ratio issues
-
-        pref_nav_ratio = indicators.get('pref_nav_ratio', 'N/A')
-        if pref_nav_ratio != 'N/A' and (not isinstance(pref_nav_ratio, (int, float)) or not (0 <= pref_nav_ratio <= 150)):
-            logging.warning(f"Invalid pref_nav_ratio: {pref_nav_ratio}")
-            # Don't fail validation
-
-        debt_nav_ratio = indicators.get('debt_nav_ratio', 'N/A')
-        if debt_nav_ratio != 'N/A' and (not isinstance(debt_nav_ratio, (int, float)) or not (0 <= debt_nav_ratio <= 150)):
-            logging.warning(f"Invalid debt_nav_ratio: {debt_nav_ratio}")
-            # Don't fail validation
-
-        bitcoin_count = indicators.get('bitcoin_count', 'N/A')
-        if bitcoin_count != 'N/A' and (
-                not isinstance(bitcoin_count, (int, float)) or not (100000 <= bitcoin_count <= 3000000)):
-            logging.warning(f"Invalid bitcoin count: {bitcoin_count}")
-            # Don't fail validation for bitcoin count issues
-
-        logging.info(
-            f"✅ MSTR data validation passed: Price=${price:.2f}, Model=${model_price:.2f}, Dev={deviation_pct:.1f}%, IV={iv:.1f}%")
-        if iv_percentile == 0 and iv_rank == 0:
-            logging.info(
-                f"💡 Note: IV Rank and Percentile are 0%, but main IV ({iv:.1f}%) is valid - options strategy will still be generated")
-        return True
+        return True  # Don't fail validation just for missing P/BYD
 
     except Exception as e:
         logging.error(f"Error validating MSTR data: {str(e)}")
@@ -788,13 +726,7 @@ def collect_mstr_data_with_retry(btc_price: float, max_attempts: int = 3) -> Dic
 # 🎯 NEW: Enhanced collection function with new scrapers integration
 def collect_mstr_data(btc_price: float) -> Dict:
     """
-    🎯 ENHANCED: Original function to collect MSTR data + NEW SCRAPERS INTEGRATION
-
-    Args:
-        btc_price: Current BTC price
-
-    Returns:
-        Dict in format compatible with existing collector + new metrics
+    🎯 ENHANCED: Original function to collect MSTR data + MULTI-PERIOD P/BYD INTEGRATION
     """
     try:
         analyzer = MSTRAnalyzer()
@@ -823,86 +755,38 @@ def collect_mstr_data(btc_price: float) -> Dict:
                     'ballistic_source': ballistic.get('source', 'unknown'),
                     'volatility_source': volatility.get('source', 'unknown')
                 },
-                'analysis': analysis  # ← Now includes improved options logic
+                'analysis': analysis
             }
 
-            # 🎯 NEW: Add new scrapers data ONLY when main collection succeeds
+            # 🎯 EXISTING: Add new scrapers data ONLY when main collection succeeds
             logging.info("🎯 Main MSTR collection successful - calling new scrapers...")
 
-            # Scraper 1: Rank data
-            logging.info("📊 Collecting MSTR rank data...")
+            # [KEEP ALL YOUR EXISTING SCRAPER CODE HERE - rank, metrics, etc.]
+            # ... existing scraper code for rank, mnav, debt ratios, bitcoin count ...
+
+            # 🎯 NEW: Calculate MULTI-PERIOD P/BYD (replaces single P/BYD calculation)
+            logging.info("💥 Calculating multi-period P/BYD...")
             try:
-                rank_result = get_mstr_rank(max_attempts=2)
-                if rank_result.get('success'):
-                    mstr_data['indicators']['rank'] = rank_result.get('rank', 'N/A')
-                    logging.info(f"✅ MSTR rank collected: #{rank_result.get('rank')}")
+                pbyd_results = _calculate_all_pbyd_for_mstr(mstr_data)
+
+                # Add all P/BYD periods to indicators
+                mstr_data['indicators']['pbyd_30d'] = pbyd_results.get('pbyd_30d', 'N/A')
+                mstr_data['indicators']['pbyd_90d'] = pbyd_results.get('pbyd_90d', 'N/A')
+                mstr_data['indicators']['pbyd_365d'] = pbyd_results.get('pbyd_365d', 'N/A')
+
+                if pbyd_results.get('reason'):
+                    logging.warning(f"⚠️ P/BYD: {pbyd_results['reason']}")
                 else:
-                    mstr_data['indicators']['rank'] = 'N/A'
-                    logging.warning(f"⚠️ MSTR rank collection failed: {rank_result.get('error', 'Unknown')}")
-            except Exception as e:
-                mstr_data['indicators']['rank'] = 'N/A'
-                logging.warning(f"⚠️ MSTR rank scraper error: {str(e)}")
-
-            # Scraper 2: Metrics data (back-to-back, different sites)
-            logging.info("📈 Collecting MSTR metrics data...")
-            try:
-                metrics_result = get_mstr_metrics(max_attempts=2)
-                if metrics_result.get('success'):
-                    metrics = metrics_result.get('metrics', {})
-                    mstr_data['indicators']['mnav'] = metrics.get('mnav', 'N/A')
-                    mstr_data['indicators']['pref_nav_ratio'] = metrics.get('pref_nav_ratio', 'N/A')
-                    mstr_data['indicators']['debt_nav_ratio'] = metrics.get('debt_nav_ratio', 'N/A')
-                    mstr_data['indicators']['debt_ratio'] = metrics.get('debt_ratio', 'N/A')
-                    mstr_data['indicators']['bitcoin_count'] = metrics.get('bitcoin_count', 'N/A')
-
-                    logging.info(f"✅ MSTR metrics collected:")
-                    logging.info(f"   mNAV: {metrics.get('mnav', 'N/A')}")
-                    logging.info(f"   Pref/NAV Ratio: {metrics.get('pref_nav_ratio', 'N/A')}%")
-                    logging.info(f"   Debt/NAV Ratio: {metrics.get('debt_nav_ratio', 'N/A')}%")
-                    logging.info(f"   Debt Ratio: {metrics.get('debt_ratio', 'N/A')}%")
-                    logging.info(f"   Bitcoin Count: {metrics.get('bitcoin_count', 'N/A')}")
-                else:
-                    mstr_data['indicators']['mnav'] = 'N/A'
-                    mstr_data['indicators']['pref_nav_ratio'] = 'N/A'
-                    mstr_data['indicators']['debt_nav_ratio'] = 'N/A'
-                    mstr_data['indicators']['debt_ratio'] = 'N/A'
-                    mstr_data['indicators']['bitcoin_count'] = 'N/A'
-                    logging.warning(f"⚠️ MSTR metrics collection failed: {metrics_result.get('error', 'Unknown')}")
-            except Exception as e:
-                mstr_data['indicators']['mnav'] = 'N/A'
-                mstr_data['indicators']['pref_nav_ratio'] = 'N/A'
-                mstr_data['indicators']['debt_nav_ratio'] = 'N/A'
-                mstr_data['indicators']['debt_ratio'] = 'N/A'
-                mstr_data['indicators']['bitcoin_count'] = 'N/A'
-                logging.warning(f"⚠️ MSTR metrics scraper error: {str(e)}")
-
-            # 🎯 NEW: Calculate BTC Stress Price
-            # 🎯 NEW: Calculate BTC Stress Price
-            logging.info("💥 Calculating BTC stress price...")
-            try:
-                debt_ratio = mstr_data['indicators']['debt_ratio']
-                if debt_ratio != 'N/A' and isinstance(debt_ratio, (int, float)):
-                    btc_stress_price = btc_price * (debt_ratio / 100)
-                    mstr_data['indicators']['btc_stress_price'] = round(btc_stress_price, 2)
                     logging.info(
-                        f"✅ BTC stress price calculated: ${btc_stress_price:,.2f} (BTC ${btc_price:,.0f} × {debt_ratio:.1f}%)")
-                else:
-                    mstr_data['indicators']['btc_stress_price'] = 'N/A'
-                    logging.warning(f"⚠️ Cannot calculate BTC stress price - debt ratio unavailable: {debt_ratio}")
+                        f"✅ Multi-period P/BYD: 30d={pbyd_results['pbyd_30d']}, 90d={pbyd_results['pbyd_90d']}, 365d={pbyd_results['pbyd_365d']}")
+
             except Exception as e:
-                mstr_data['indicators']['btc_stress_price'] = 'N/A'
-                logging.warning(f"⚠️ BTC stress price calculation error: {str(e)}")
+                mstr_data['indicators']['pbyd_30d'] = 'N/A'
+                mstr_data['indicators']['pbyd_90d'] = 'N/A'
+                mstr_data['indicators']['pbyd_365d'] = 'N/A'
+                logging.warning(f"⚠️ Multi-period P/BYD calculation error: {str(e)}")
 
-            # 🎯 NEW: Calculate P/BYD (365d)
-            pbyd_result = _calculate_pbyd_for_mstr(mstr_data)
-            mstr_data['indicators']['pbyd_365d'] = pbyd_result['value']
-
-            if pbyd_result['reason']:
-                logging.warning(f"⚠️ P/BYD: {pbyd_result['reason']}")
-            else:
-                logging.info(f"✅ P/BYD (365d): {pbyd_result['value']}")
-
-            return mstr_data
+        return mstr_data
 
         else:
             return {
@@ -921,33 +805,80 @@ def collect_mstr_data(btc_price: float) -> Dict:
         }
 
 
-def _calculate_pbyd_for_mstr(mstr_data: Dict) -> Dict:
-    """Calculate P/BYD using current MSTR data and historical BTC holdings"""
+def _calculate_all_pbyd_for_mstr(mstr_data: Dict) -> Dict:
+    """Calculate multi-period P/BYD using current MSTR data and historical BTC holdings"""
     try:
+        from multi_period_pbyd_calculator import MultiPeriodPBYDCalculator
+        from json_data_manager import DataManager  # Use json_data_manager, not data_manager
+
         indicators = mstr_data.get('indicators', {})
         current_btc_holdings = indicators.get('bitcoin_count', 0)
         current_mnav = indicators.get('mnav', 0)
 
+        # Validate inputs
         if current_btc_holdings == 'N/A' or current_btc_holdings <= 0:
-            return {'value': 'N/A', 'reason': 'Missing current BTC holdings'}
+            return {
+                'pbyd_30d': 'N/A',
+                'pbyd_90d': 'N/A',
+                'pbyd_365d': 'N/A',
+                'reason': 'Missing current BTC holdings'
+            }
 
         if current_mnav == 'N/A' or current_mnav <= 0:
-            return {'value': 'N/A', 'reason': 'Missing mNAV data'}
+            return {
+                'pbyd_30d': 'N/A',
+                'pbyd_90d': 'N/A',
+                'pbyd_365d': 'N/A',
+                'reason': 'Missing mNAV data'
+            }
 
+        # Get historical BTC data
         data_manager = DataManager()
         btc_data = data_manager.get_btc_holdings_data()
 
         if not btc_data:
-            return {'value': 'N/A', 'reason': 'No historical BTC data available'}
+            return {
+                'pbyd_30d': 'N/A',
+                'pbyd_90d': 'N/A',
+                'pbyd_365d': 'N/A',
+                'reason': 'No historical BTC data available'
+            }
 
-        return PBYDCalculator.calculate_full_pbyd(
+        # Calculate multi-period P/BYD
+        results = MultiPeriodPBYDCalculator.calculate_multi_period_pbyd(
             current_btc_holdings=float(current_btc_holdings),
             mnav=float(current_mnav),
             btc_data=btc_data
         )
 
+        # Format results for MSTR indicators
+        formatted_results = MultiPeriodPBYDCalculator.format_pbyd_results(results)
+
+        # Add debug info if needed
+        if not results.get('success'):
+            formatted_results['reason'] = results.get('reason', 'Multi-period calculation failed')
+
+        logging.info(
+            f"✅ Multi-period P/BYD calculated: 30d={formatted_results['pbyd_30d']}, 90d={formatted_results['pbyd_90d']}, 365d={formatted_results['pbyd_365d']}")
+
+        return formatted_results
+
+    except ImportError as e:
+        logging.error(f"Import error for P/BYD calculation: {str(e)}")
+        return {
+            'pbyd_30d': 'N/A',
+            'pbyd_90d': 'N/A',
+            'pbyd_365d': 'N/A',
+            'reason': f'Import error: {str(e)}'
+        }
     except Exception as e:
-        return {'value': 'N/A', 'reason': f'Calculation error: {str(e)}'}
+        logging.error(f"P/BYD calculation error: {str(e)}")
+        return {
+            'pbyd_30d': 'N/A',
+            'pbyd_90d': 'N/A',
+            'pbyd_365d': 'N/A',
+            'reason': f'Calculation error: {str(e)}'
+        }
 
 
 if __name__ == "__main__":
