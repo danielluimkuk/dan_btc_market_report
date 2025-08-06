@@ -382,7 +382,7 @@ class MSTRAnalyzer:
                         continue
 
             return {
-                'success': bool(data.get('iv', 0) > 0),  # ← FIXED: Success if we have IV data
+                'success': bool(data.get('iv', 0) > 0),  # Success if we have IV data
                 'source': 'selenium',
                 **data
             }
@@ -402,7 +402,7 @@ class MSTRAnalyzer:
                 'price_signal': {},
                 'volatility_signal': {},
                 'volatility_conflict': {},
-                'options_strategy': {}  # ← NEW: Improved options recommendations
+                'options_strategy': {}  # NEW: Improved options recommendations
             }
 
             # =================================================================
@@ -647,7 +647,30 @@ def _validate_mstr_data(data: Dict) -> bool:
     🎯 UPDATED: Validate MSTR data quality including multi-period P/BYD
     """
     try:
-        # ... existing validation code ...
+        # Check basic structure
+        if not isinstance(data, dict) or not data.get('success'):
+            logging.error("Data validation failed: not successful dict")
+            return False
+
+        # Check required fields
+        indicators = data.get('indicators', {})
+        if not indicators:
+            logging.error("Data validation failed: no indicators")
+            return False
+
+        # Check price data
+        price = data.get('price', 0)
+        model_price = indicators.get('model_price', 0)
+
+        if not (1 < price < 10000) or not (1 < model_price < 10000):
+            logging.error(f"Data validation failed: unreasonable prices - price: {price}, model: {model_price}")
+            return False
+
+        # Check analysis structure
+        analysis = data.get('analysis', {})
+        if not analysis or 'price_signal' not in analysis:
+            logging.error("Data validation failed: missing analysis structure")
+            return False
 
         # 🎯 NEW: Validate P/BYD metrics (but don't fail validation if missing)
         pbyd_30d = indicators.get('pbyd_30d', 'N/A')
@@ -660,8 +683,6 @@ def _validate_mstr_data(data: Dict) -> bool:
             logging.warning("No P/BYD metrics available")
         else:
             logging.info(f"✅ P/BYD metrics available: {pbyd_available}/3 periods")
-
-        # ... rest of existing validation ...
 
         return True  # Don't fail validation just for missing P/BYD
 
@@ -761,8 +782,45 @@ def collect_mstr_data(btc_price: float) -> Dict:
             # 🎯 EXISTING: Add new scrapers data ONLY when main collection succeeds
             logging.info("🎯 Main MSTR collection successful - calling new scrapers...")
 
-            # [KEEP ALL YOUR EXISTING SCRAPER CODE HERE - rank, metrics, etc.]
-            # ... existing scraper code for rank, mnav, debt ratios, bitcoin count ...
+            # Add rank data
+            try:
+                rank_data = get_mstr_rank()
+                if rank_data.get('success'):
+                    mstr_data['indicators']['rank'] = rank_data.get('rank', 'N/A')
+                    logging.info(f"✅ MSTR rank: {rank_data.get('rank', 'N/A')}")
+                else:
+                    mstr_data['indicators']['rank'] = 'N/A'
+                    logging.warning(f"⚠️ Rank scraper failed: {rank_data.get('error', 'Unknown error')}")
+            except Exception as e:
+                mstr_data['indicators']['rank'] = 'N/A'
+                logging.warning(f"⚠️ Rank scraper error: {str(e)}")
+
+            # Add pause to avoid overwhelming servers
+            time.sleep(5)
+
+            # Add mNAV and debt metrics
+            try:
+                metrics_data = get_mstr_metrics()
+                if metrics_data.get('success'):
+                    metrics = metrics_data.get('metrics', {})
+                    mstr_data['indicators']['mnav'] = metrics.get('mnav', 'N/A')
+                    mstr_data['indicators']['pref_nav_ratio'] = metrics.get('pref_nav_ratio', 'N/A')
+                    mstr_data['indicators']['debt_nav_ratio'] = metrics.get('debt_nav_ratio', 'N/A')
+                    mstr_data['indicators']['debt_ratio'] = metrics.get('debt_ratio', 'N/A')
+                    mstr_data['indicators']['bitcoin_count'] = metrics.get('bitcoin_count', 'N/A')
+                    mstr_data['indicators']['btc_stress_price'] = metrics.get('btc_stress_price', 'N/A')
+                    
+                    logging.info(f"✅ mNAV metrics: mNAV={metrics.get('mnav', 'N/A')}, BTC count={metrics.get('bitcoin_count', 'N/A')}")
+                else:
+                    # Set all metrics to N/A if scraper fails
+                    for key in ['mnav', 'pref_nav_ratio', 'debt_nav_ratio', 'debt_ratio', 'bitcoin_count', 'btc_stress_price']:
+                        mstr_data['indicators'][key] = 'N/A'
+                    logging.warning(f"⚠️ mNAV scraper failed: {metrics_data.get('error', 'Unknown error')}")
+            except Exception as e:
+                # Set all metrics to N/A if scraper crashes
+                for key in ['mnav', 'pref_nav_ratio', 'debt_nav_ratio', 'debt_ratio', 'bitcoin_count', 'btc_stress_price']:
+                    mstr_data['indicators'][key] = 'N/A'
+                logging.warning(f"⚠️ mNAV scraper error: {str(e)}")
 
             # 🎯 NEW: Calculate MULTI-PERIOD P/BYD (replaces single P/BYD calculation)
             logging.info("💥 Calculating multi-period P/BYD...")
@@ -786,7 +844,7 @@ def collect_mstr_data(btc_price: float) -> Dict:
                 mstr_data['indicators']['pbyd_365d'] = 'N/A'
                 logging.warning(f"⚠️ Multi-period P/BYD calculation error: {str(e)}")
 
-        return mstr_data
+            return mstr_data
 
         else:
             return {
@@ -912,6 +970,12 @@ if __name__ == "__main__":
         print(f"   Debt Ratio: {indicators.get('debt_ratio', 'N/A')}%")
         print(f"   Bitcoin Count: {indicators.get('bitcoin_count', 'N/A')}")
         print(f"   BTC Stress Price: ${indicators.get('btc_stress_price', 'N/A')}")
+        
+        # 🎯 NEW: Show multi-period P/BYD metrics
+        print(f"\n💥 MULTI-PERIOD P/BYD:")
+        print(f"   30-day P/BYD: {indicators.get('pbyd_30d', 'N/A')}")
+        print(f"   90-day P/BYD: {indicators.get('pbyd_90d', 'N/A')}")
+        print(f"   365-day P/BYD: {indicators.get('pbyd_365d', 'N/A')}")
 
         analysis = result.get('analysis', {})
         price_signal = analysis.get('price_signal', {})
