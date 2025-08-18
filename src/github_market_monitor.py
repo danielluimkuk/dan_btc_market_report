@@ -44,10 +44,29 @@ def main():
 
     try:
         # Initialize components (enhanced notification handler has our new features)
+        logging.info('🔧 Step 1: Initializing AssetDataCollector...')
+        start_time = datetime.utcnow()
         collector = AssetDataCollector()
+        elapsed = (datetime.utcnow() - start_time).total_seconds()
+        logging.info(f'✅ AssetDataCollector ready ({elapsed:.1f}s)')
+
+        logging.info('🔧 Step 2: Initializing EnhancedNotificationHandler...')
+        start_time = datetime.utcnow()
         notification_handler = EnhancedNotificationHandler()
-        data_storage = DataStorage()
+        elapsed = (datetime.utcnow() - start_time).total_seconds()
+        logging.info(f'✅ EnhancedNotificationHandler ready ({elapsed:.1f}s)')
+
+        logging.info('🔧 Step 3: Initializing DataStorage...')
+        start_time = datetime.utcnow()
+        data_storage = None  # AZURE DISABLED
+        elapsed = (datetime.utcnow() - start_time).total_seconds()
+        logging.info(f'✅ DataStorage ready (disabled) ({elapsed:.1f}s)')
+
+        logging.info('🔧 Step 4: Initializing MonetaryAnalyzer...')
+        start_time = datetime.utcnow()
         monetary_analyzer = MonetaryAnalyzer(storage=data_storage)
+        elapsed = (datetime.utcnow() - start_time).total_seconds()
+        logging.info(f'✅ MonetaryAnalyzer ready ({elapsed:.1f}s)')
 
         # Define assets to monitor
         assets_config = {
@@ -70,7 +89,7 @@ def main():
 
             if asset == 'BTC':
                 asset_data = collector.collect_asset_data(asset, config)
-                
+
                 # 🎯 DEBUG: Log Pi Cycle data presence in collected data
                 pi_cycle_data = asset_data.get('pi_cycle', {})
                 if pi_cycle_data.get('success'):
@@ -78,8 +97,9 @@ def main():
                     gap_percentage = pi_cycle_data.get('current_values', {}).get('gap_percentage', 0)
                     logging.info(f"🎯 BTC Pi Cycle collected: {proximity_level} ({gap_percentage:.1f}% gap)")
                 else:
-                    logging.warning(f"⚠️ BTC Pi Cycle collection issue: {pi_cycle_data.get('error', 'No Pi Cycle data')}")
-                    
+                    logging.warning(
+                        f"⚠️ BTC Pi Cycle collection issue: {pi_cycle_data.get('error', 'No Pi Cycle data')}")
+
             elif asset == 'MSTR':
                 btc_price = None
                 if 'BTC' in collected_data and collected_data['BTC'].get('success'):
@@ -102,13 +122,13 @@ def main():
         if monetary_data.get('success'):
             data_date = monetary_data.get('data_date', 'Unknown')
             days_old = monetary_data.get('days_old', 0)
-            
+
             # 🎯 NEW: Log the enhanced monetary features
             true_inflation = monetary_data.get('true_inflation_rate')
             m2_growth = monetary_data.get('m2_20y_growth')
-            
+
             logging.info(f"✅ Monetary data collected: {data_date} ({days_old} days old)")
-            
+
             if true_inflation is not None:
                 logging.info(f"💰 True Inflation Rate (20Y M2 CAGR): {true_inflation:.1f}%")
                 breakeven_roi = true_inflation / (1 - 0.25)  # 25% tax assumption
@@ -117,7 +137,7 @@ def main():
                 logging.info("✨ Enhanced 'Monetary Reality' insight will be included in report")
             else:
                 logging.warning("⚠️ True inflation rate calculation not available (may need more M2 historical data)")
-                
+
         else:
             logging.warning(f"⚠️ Monetary data collection failed: {monetary_data.get('error')}")
 
@@ -125,7 +145,7 @@ def main():
         logging.info("⚖️ Capturing Bitcoin Laws screenshot...")
         # bitcoin_laws_screenshot = capture_bitcoin_laws_screenshot(verbose=True) disabled for now
         bitcoin_laws_screenshot = ""
-        
+
         if bitcoin_laws_screenshot:
             logging.info("✅ Bitcoin Laws screenshot captured successfully")
         else:
@@ -136,30 +156,40 @@ def main():
         processed_data['monetary'] = monetary_data
 
         # Store data
-        logging.info('💾 Storing processed data')
-        data_storage.store_daily_data(processed_data)
+        logging.info('💾 Skipping data storage (Azure disabled)')
+        # data_storage.store_daily_data(processed_data)  # COMMENTED OUT
 
         # 🎯 ENHANCED: Check if we should send the report (with monetary validation)
+        logging.info('🔧 Step 6: Evaluating report sending criteria...')
+        start_time = datetime.utcnow()
         should_send_report = should_send_daily_report_enhanced(
             processed_data, collected_data, bitcoin_laws_screenshot, monetary_data
         )
+        elapsed = (datetime.utcnow() - start_time).total_seconds()
+        logging.info(f'✅ Report evaluation complete ({elapsed:.1f}s)')
 
         if should_send_report['send']:
             logging.info('📧 All components ready - generating enhanced report with monetary insights and Pi Cycle')
-            
-            # Generate alerts
+
+            logging.info('🔧 Step 7: Generating alerts...')
+            start_time = datetime.utcnow()
             alerts = generate_alerts(processed_data, data_storage)
-            
-            # 🎯 ENHANCED: Send report with new monetary features + Pi Cycle
+            elapsed = (datetime.utcnow() - start_time).total_seconds()
+            logging.info(f'✅ Alerts generated ({elapsed:.1f}s)')
+
+            logging.info('🔧 Step 8: Sending enhanced report...')
+            start_time = datetime.utcnow()
             notification_handler.send_daily_report(processed_data, alerts, bitcoin_laws_screenshot)
-            
+            elapsed = (datetime.utcnow() - start_time).total_seconds()
+            logging.info(f'✅ Report sent ({elapsed:.1f}s)')
+
             # Log what enhanced features were included
             if monetary_data.get('success') and monetary_data.get('true_inflation_rate'):
                 logging.info('✨ Report includes enhanced monetary analysis:')
                 logging.info(f'   💰 True Inflation Rate: {monetary_data["true_inflation_rate"]:.1f}%')
                 logging.info('   📝 Additional "Monetary Reality" insight section')
                 logging.info('   🎯 Bitcoin investment thesis strengthened by monetary debasement data')
-            
+
             # 🎯 NEW: Log Pi Cycle inclusion status
             btc_pi_cycle = processed_data.get('assets', {}).get('BTC', {}).get('pi_cycle', {})
             if btc_pi_cycle.get('success'):
@@ -168,17 +198,17 @@ def main():
                 logging.info(f'✨ Report includes Pi Cycle Top Indicator: {proximity_level} ({gap_percentage:.1f}% gap)')
             else:
                 logging.warning(f'⚠️ Pi Cycle not included in report: {btc_pi_cycle.get("error", "No data")}')
-            
+
             logging.info('✅ Enhanced Market Monitor completed successfully')
             return True
         else:
             logging.warning(f'📧 Report not sent: {should_send_report["reason"]}')
-            
+
             # 🎯 ENHANCED: Include monetary status in error report
             monetary_status = "✅ SUCCESS" if monetary_data.get('success') else "❌ FAILED"
             if monetary_data.get('success') and monetary_data.get('true_inflation_rate'):
                 monetary_status += f" (True Inflation: {monetary_data['true_inflation_rate']:.1f}%)"
-            
+
             # 🎯 NEW: Include Pi Cycle status in error report
             btc_data = collected_data.get('BTC', {})
             pi_cycle_status = "❌ NOT COLLECTED"
@@ -190,7 +220,7 @@ def main():
                     pi_cycle_status = f"✅ SUCCESS ({proximity_level} - {gap_percentage:.1f}% gap)"
                 else:
                     pi_cycle_status = f"❌ FAILED ({pi_cycle_data.get('error', 'Unknown error')})"
-            
+
             error_message = f"""
 Enhanced GitHub Actions Daily Report - Component Status
 
@@ -224,7 +254,7 @@ DETAILS:
             error_handler.send_error_notification(f"Enhanced GitHub Actions Error: {str(e)}")
         except Exception as error_ex:
             logging.error(f'❌ Failed to send error notification: {str(error_ex)}')
-        
+
         return False
 
 
@@ -246,7 +276,7 @@ def should_send_daily_report_enhanced(processed_data: Dict, collected_data: Dict
         # 🎯 ENHANCED: More detailed monetary data validation
         monetary_success = monetary_data.get('success', False) if monetary_data else False
         has_enhanced_features = False
-        
+
         if monetary_success and monetary_data:
             true_inflation = monetary_data.get('true_inflation_rate')
             m2_growth = monetary_data.get('m2_20y_growth')
@@ -255,12 +285,12 @@ def should_send_daily_report_enhanced(processed_data: Dict, collected_data: Dict
         # 🎯 NEW: Pi Cycle validation
         pi_cycle_success = False
         pi_cycle_status = "not_collected"
-        
+
         if btc_success:
             btc_data = collected_data.get('BTC', {})
             pi_cycle_data = btc_data.get('pi_cycle', {})
             pi_cycle_success = pi_cycle_data.get('success', False)
-            
+
             if pi_cycle_success:
                 proximity_level = pi_cycle_data.get('signal_status', {}).get('proximity_level', 'UNKNOWN')
                 gap_percentage = pi_cycle_data.get('current_values', {}).get('gap_percentage', 0)
@@ -276,7 +306,7 @@ def should_send_daily_report_enhanced(processed_data: Dict, collected_data: Dict
         core_components_ready = (
                 btc_success and btc_data_quality['is_valid'] and
                 mstr_success and mstr_data_quality['is_valid']
-                # screenshot_success
+            # screenshot_success
         )
 
         if core_components_ready:
@@ -396,7 +426,7 @@ def validate_btc_data_quality_enhanced(btc_data: Dict) -> Dict:
             ma_111 = current_values.get('ma_111', 0)
             ma_350_x2 = current_values.get('ma_350_x2', 0)
             gap_percentage = current_values.get('gap_percentage', None)
-            
+
             if ma_111 <= 0:
                 issues.append(f"Pi Cycle: Invalid 111-day MA: {ma_111}")
             if ma_350_x2 <= 0:
@@ -405,7 +435,7 @@ def validate_btc_data_quality_enhanced(btc_data: Dict) -> Dict:
                 issues.append("Pi Cycle: Missing gap percentage")
             elif abs(gap_percentage) > 100:
                 issues.append(f"Pi Cycle: Gap percentage seems extreme: {gap_percentage:.1f}%")
-                
+
             logging.info(f"🎯 Pi Cycle quality check passed: {current_values.get('gap_percentage', 0):.1f}% gap")
         else:
             # Pi Cycle failure is logged but doesn't fail overall validation
@@ -491,7 +521,7 @@ def process_asset_data_enhanced(collected_data: Dict) -> Dict:
             if asset == 'BTC':
                 # 🎯 ENHANCED: Preserve Pi Cycle data with debug logging
                 pi_cycle_data = data.get('pi_cycle', {})
-                
+
                 processed['assets'][asset] = {
                     'type': data.get('type', 'crypto'),
                     'price': data.get('price', 0),
@@ -500,23 +530,24 @@ def process_asset_data_enhanced(collected_data: Dict) -> Dict:
                     'last_updated': data.get('timestamp'),
                     'pi_cycle': pi_cycle_data  # 🎯 CRITICAL: Preserve Pi Cycle data
                 }
-                
+
                 # 🎯 DEBUG: Log Pi Cycle data preservation
                 if pi_cycle_data.get('success'):
                     proximity_level = pi_cycle_data.get('signal_status', {}).get('proximity_level', 'UNKNOWN')
                     gap_percentage = pi_cycle_data.get('current_values', {}).get('gap_percentage', 0)
-                    logging.info(f"🎯 Pi Cycle data preserved in processed_data: {proximity_level} ({gap_percentage:.1f}% gap)")
+                    logging.info(
+                        f"🎯 Pi Cycle data preserved in processed_data: {proximity_level} ({gap_percentage:.1f}% gap)")
                     processed['summary']['pi_cycle_available'] = True
                 else:
                     logging.warning(f"⚠️ Pi Cycle data not preserved: {pi_cycle_data.get('error', 'No data')}")
-                    
+
             elif asset == 'MSTR':
                 analysis = data.get('analysis', {})
                 # 🎯 ENHANCED: Track if options strategy is available
                 has_options_strategy = bool(analysis.get('options_strategy'))
                 if has_options_strategy:
                     processed['summary']['enhanced_features_available'] = True
-                
+
                 processed['assets'][asset] = {
                     'type': data.get('type', 'stock'),
                     'price': data.get('price', 0),
@@ -542,11 +573,14 @@ def process_asset_data_enhanced(collected_data: Dict) -> Dict:
                 'error': data.get('error', 'Unknown error'),
                 'last_updated': datetime.utcnow().isoformat(),
                 'attempts_made': data.get('attempts_made', 1),
-                'pi_cycle': data.get('pi_cycle', {'success': False, 'error': 'Asset collection failed'}) if asset == 'BTC' else None  # 🎯 Preserve failed Pi Cycle
+                'pi_cycle': data.get('pi_cycle',
+                                     {'success': False, 'error': 'Asset collection failed'}) if asset == 'BTC' else None
+                # 🎯 Preserve failed Pi Cycle
             }
 
     # 🎯 DEBUG: Final summary of processed data
-    logging.info(f"📊 Processed data summary: {processed['summary']['successful_collections']}/{processed['summary']['total_assets']} assets successful")
+    logging.info(
+        f"📊 Processed data summary: {processed['summary']['successful_collections']}/{processed['summary']['total_assets']} assets successful")
     logging.info(f"🎯 Enhanced features available: {processed['summary']['enhanced_features_available']}")
     logging.info(f"🥧 Pi Cycle available: {processed['summary']['pi_cycle_available']}")
 
@@ -636,7 +670,7 @@ def generate_btc_alerts_enhanced(btc_data: Dict, storage: DataStorage) -> List[D
         signal_status = pi_cycle_data.get('signal_status', {})
         proximity_level = signal_status.get('proximity_level', 'UNKNOWN')
         gap_percentage = pi_cycle_data.get('current_values', {}).get('gap_percentage', 0)
-        
+
         if proximity_level == 'ACTIVE':
             alerts.append({
                 'type': 'pi_cycle_active',
@@ -694,7 +728,7 @@ def generate_mstr_alerts(mstr_data: Dict, storage: DataStorage) -> List[Dict]:
     if options_strategy:
         strategy = options_strategy.get('primary_strategy', '')
         confidence = options_strategy.get('confidence', 'medium')
-        
+
         if strategy in ['long_calls', 'moderate_bullish'] and confidence == 'high':
             alerts.append({
                 'type': 'mstr_bullish_options',
