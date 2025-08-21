@@ -20,6 +20,8 @@ from pi_cycle_indicator import PiCycleTopIndicator
 # Add this at the top of asset_data_collector.py (after imports)
 import os
 import sys
+from fake_useragent import UserAgent
+import random
 
 # Fix Windows console encoding for Unicode characters
 if os.name == 'nt':  # Windows
@@ -430,27 +432,58 @@ class HybridBTCCollector:
         try:
             logging.info("⛏️ Collecting Bitcoin mining cost from CCAF...")
 
+            # ADD THIS BLOCK - Enhanced Chrome options with rotation
+            ua = UserAgent()
+            user_agent = ua.random
+            logging.info(f"🔄 Using User Agent: {user_agent[:50]}...")
+
             chrome_options = Options()
             chrome_options.add_argument('--headless')
             chrome_options.add_argument('--no-sandbox')
             chrome_options.add_argument('--disable-dev-shm-usage')
             chrome_options.add_argument('--disable-gpu')
             chrome_options.add_argument('--window-size=1920,1080')
-            chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+            # REPLACE the existing user-agent line with these:
+            chrome_options.add_argument(f'--user-agent={user_agent}')
+            chrome_options.add_argument('--referer=https://ccaf.io/')
+            chrome_options.add_argument('--accept=text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8')
+            # END BLOCK
 
             driver = webdriver.Chrome(options=chrome_options)
+
+            # ADD THIS BLOCK - Enhanced logging for page access
+            logging.info("🌐 Navigating to CCAF mining data page...")
             driver.get("https://ccaf.io/cbnsi/cbeci/mining_map/mining_data")
+            logging.info("✅ Page loaded, waiting for content...")
+            # END BLOCK
 
             # Wait for page to load
             WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
             time.sleep(15)  # Additional wait for dynamic content
 
+            # ADD THIS BLOCK - Debug page status
+            page_title = driver.title
+            page_url = driver.current_url
+            logging.info(f"📄 Page Title: '{page_title}'")
+            logging.info(f"🔗 Current URL: {page_url}")
+
+            # Check if we got redirected or blocked
+            if "ccaf.io" not in page_url.lower():
+                logging.warning(f"⚠️ Possible redirect detected: {page_url}")
+            # END BLOCK
+
             # Extract mining cost value using CCAF XPath
             try:
+                # ADD THIS BLOCK - Enhanced element finding with debug
+                xpath = '//*[@id="wrap-container"]/div[3]/div/div[1]/div[1]/div/div/div[2]/div/div[2]/div/div[2]/h2'
+                logging.info(f"🔍 Searching for element with XPath: {xpath}")
+
                 mining_cost_element = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.XPATH,
-                                                    '//*[@id="wrap-container"]/div[3]/div/div[1]/div[1]/div/div/div[2]/div/div[2]/div/div[2]/h2'))
+                    EC.presence_of_element_located((By.XPATH, xpath))
                 )
+                logging.info("✅ Mining cost element found!")
+                # END BLOCK
+
                 mining_cost_text = mining_cost_element.text.strip()
                 logging.info(f"📊 Raw CCAF mining cost text: '{mining_cost_text}'")
 
@@ -473,7 +506,17 @@ class HybridBTCCollector:
                     return {'mining_cost': 'N/A', 'data_date': 'CCAF Data', 'error': 'Could not parse value'}
 
             except Exception as e:
+                # ADD THIS BLOCK - Enhanced error logging
                 logging.error(f"❌ Failed to extract CCAF mining cost: {str(e)}")
+
+                # Additional debug info
+                try:
+                    page_source_preview = driver.page_source[:500] if driver.page_source else "No page source"
+                    logging.error(f"📄 Page source preview: {page_source_preview}")
+                except:
+                    logging.error("📄 Could not get page source for debugging")
+                # END BLOCK
+
                 return {'mining_cost': 'N/A', 'data_date': 'CCAF Data', 'error': 'Element not found'}
 
             # Small delay to be respectful to the server
@@ -486,7 +529,19 @@ class HybridBTCCollector:
             }
 
         except Exception as e:
+            # ADD THIS BLOCK - Enhanced exception logging
             logging.error(f"❌ CCAF mining cost collection failed: {str(e)}")
+            logging.error(f"🔍 Exception type: {type(e).__name__}")
+
+            # Log browser status if available
+            if driver:
+                try:
+                    current_url = driver.current_url
+                    logging.error(f"🔗 Browser was at URL: {current_url}")
+                except:
+                    logging.error("🔗 Could not get browser URL")
+            # END BLOCK
+
             return {'mining_cost': 'N/A', 'data_date': 'CCAF Data', 'error': str(e)}
         finally:
             if driver:
