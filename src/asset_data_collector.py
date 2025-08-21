@@ -535,16 +535,87 @@ class HybridBTCCollector:
                 logging.info("✅ Mining cost element found!")
 
                 # NEW BLOCK - Wait for content to populate
-                logging.info("⏳ Waiting for content to populate...")
+                # NEW BLOCK - Trigger data loading and wait for content
+                logging.info("⏳ Triggering data loading and waiting for content...")
+
+                # Try to trigger AJAX calls by interacting with the page
+                try:
+                    # Scroll to trigger lazy loading
+                    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                    time.sleep(2)
+                    driver.execute_script("window.scrollTo(0, 0);")
+                    time.sleep(2)
+
+                    # Try clicking on tabs or buttons that might load data
+                    clickable_elements = [
+                        "//button",
+                        "//a[contains(@class, 'tab')]",
+                        "//*[contains(@class, 'button')]",
+                        "//*[contains(text(), 'Mining')]",
+                        "//*[contains(text(), 'Data')]"
+                    ]
+
+                    for selector in clickable_elements:
+                        try:
+                            elements = driver.find_elements(By.XPATH, selector)
+                            for element in elements[:3]:  # Try first 3 matches
+                                try:
+                                    if element.is_displayed() and element.is_enabled():
+                                        driver.execute_script("arguments[0].click();", element)
+                                        logging.info(f"🖱️ Clicked element: {element.tag_name}")
+                                        time.sleep(3)
+                                        break
+                                except:
+                                    continue
+                        except:
+                            continue
+
+                    # Try refreshing the element area
+                    driver.execute_script("""
+                                    // Force refresh of mining cost section
+                                    var element = document.evaluate('//*[@id="wrap-container"]/div[3]/div/div[1]/div[1]', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+                                    if (element) {
+                                        element.style.display = 'none';
+                                        setTimeout(function() { element.style.display = 'block'; }, 100);
+                                    }
+                                """)
+                    time.sleep(3)
+
+                except Exception as e:
+                    logging.warning(f"⚠️ Error triggering data loading: {str(e)}")
 
                 # Try multiple times to get non-empty content
-                for attempt in range(10):  # Try for up to 30 seconds (10 * 3 seconds)
+                for attempt in range(15):  # Increased to 45 seconds (15 * 3 seconds)
                     mining_cost_text = mining_cost_element.text.strip()
                     logging.info(f"📊 Attempt {attempt + 1}: Raw text = '{mining_cost_text}'")
 
                     if mining_cost_text:  # If we got content, break
                         logging.info(f"✅ Content populated after {attempt + 1} attempts!")
                         break
+
+                    # Try alternative selectors if main one is empty
+                    if attempt % 3 == 0:  # Every 3rd attempt
+                        alternative_xpaths = [
+                            '//*[@id="wrap-container"]//h2[contains(text(), "$") or contains(text(), ",")]',
+                            '//*[contains(@class, "mining")]//h2',
+                            '//*[contains(@class, "cost")]//h2',
+                            '//h2[contains(text(), "$")]',
+                            '//*[@id="wrap-container"]//div[contains(text(), "$")]'
+                        ]
+
+                        for alt_xpath in alternative_xpaths:
+                            try:
+                                alt_element = driver.find_element(By.XPATH, alt_xpath)
+                                alt_text = alt_element.text.strip()
+                                if alt_text and ('$' in alt_text or ',' in alt_text):
+                                    logging.info(f"🎯 Found alternative element: '{alt_text}'")
+                                    mining_cost_text = alt_text
+                                    break
+                            except:
+                                continue
+
+                        if mining_cost_text:
+                            break
 
                     time.sleep(3)  # Wait 3 seconds before next attempt
 
@@ -555,30 +626,47 @@ class HybridBTCCollector:
                         pass
                 else:
                     # If we exhausted all attempts without getting content
-                    logging.warning("⚠️ Content never populated after 30 seconds")
-                    return {'mining_cost': 'N/A', 'data_date': 'CCAF Data', 'error': 'Content not loaded'}
+                    logging.warning("⚠️ Content never populated after 45 seconds")
+
+                    # Last resort - get page source and search for mining cost patterns
+                    try:
+                        page_source = driver.page_source
+
+                        # Search for mining cost patterns in page source
+                        cost_patterns = [
+                            r'\$[\d,]+\.?\d*',  # $123,456 or $123,456.78
+                            r'[\d,]+\.?\d*\s*USD',  # 123456 USD
+                            r'Cost[^$]*\$[\d,]+',  # Cost ... $123456
+                            r'Mining[^$]*\$[\d,]+',  # Mining ... $123456
+                        ]
+
+                        for pattern in cost_patterns:
+                            matches = re.findall(pattern, page_source, re.IGNORECASE)
+                            for match in matches:
+                                # Extract number from match
+                                numbers = re.findall(r'[\d,]+\.?\d*', match.replace(',', ''))
+                                for num_str in numbers:
+                                    try:
+                                        num = float(num_str)
+                                        if 10000 <= num <= 1500000:  # Valid range
+                                            logging.info(f"🔍 Found mining cost in page source: ${num:,.0f}")
+                                            mining_cost_text = f"${num:,.0f}"
+                                            break
+                                    except:
+                                        continue
+                                if mining_cost_text:
+                                    break
+                            if mining_cost_text:
+                                break
+
+                        if not mining_cost_text:
+                            return {'mining_cost': 'N/A', 'data_date': 'CCAF Data',
+                                    'error': 'Content not loaded after all attempts'}
+
+                    except Exception as e:
+                        logging.error(f"❌ Page source search failed: {str(e)}")
+                        return {'mining_cost': 'N/A', 'data_date': 'CCAF Data', 'error': 'Content not loaded'}
                 # END NEW BLOCK
-
-                logging.info(f"📊 Final CCAF mining cost text: '{mining_cost_text}'")
-
-                # Parse the value - remove commas, dollar signs, etc.
-                clean_text = mining_cost_text.replace(',', '').replace('$', '').replace(' ', '')
-
-                # Extract numeric value
-                value_match = re.search(r'([0-9]+\.?[0-9]*)', clean_text)
-                if value_match:
-                    mining_cost = float(value_match.group(1))
-
-                    # Validate range (10,000 to 1,500,000)
-                    if 10000 <= mining_cost <= 1500000:
-                        logging.info(f"✅ Valid CCAF mining cost extracted: ${mining_cost:,.0f}")
-                    else:
-                        logging.warning(f"⚠️ CCAF mining cost out of valid range: ${mining_cost:,.0f}")
-                        return {'mining_cost': 'N/A', 'data_date': 'CCAF Data', 'error': 'Value out of range'}
-                else:
-                    logging.warning(f"⚠️ Could not parse numeric value from CCAF: '{mining_cost_text}'")
-                    return {'mining_cost': 'N/A', 'data_date': 'CCAF Data', 'error': 'Could not parse value'}
-
             except Exception as e:
                 # ADD THIS BLOCK - Enhanced error logging
                 logging.error(f"❌ Failed to extract CCAF mining cost: {str(e)}")
