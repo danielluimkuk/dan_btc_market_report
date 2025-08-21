@@ -472,6 +472,57 @@ class HybridBTCCollector:
                 logging.warning(f"⚠️ Possible redirect detected: {page_url}")
             # END BLOCK
 
+            # NEW BLOCK - Handle cookie consent popup
+            logging.info("🍪 Checking for cookie consent popup...")
+            try:
+                # Wait a bit for popup to appear
+                time.sleep(3)
+
+                # Common selectors for cookie consent buttons - try multiple
+                cookie_selectors = [
+                    "//button[contains(text(), 'Accept')]",
+                    "//button[contains(text(), 'OK')]",
+                    "//button[contains(text(), 'I agree')]",
+                    "//button[contains(text(), 'Got it')]",
+                    "//a[contains(text(), 'Learn More')]/..//button",  # Button near "Learn More"
+                    "//*[contains(@class, 'cookie')]//button",
+                    "//*[contains(@class, 'consent')]//button",
+                    "//*[contains(@class, 'gdpr')]//button",
+                    "//button[@type='button'][contains(., 'Accept')]"
+                ]
+
+                popup_handled = False
+                for selector in cookie_selectors:
+                    try:
+                        popup_button = WebDriverWait(driver, 2).until(
+                            EC.element_to_be_clickable((By.XPATH, selector))
+                        )
+                        popup_button.click()
+                        logging.info(f"✅ Clicked cookie consent with selector: {selector}")
+                        popup_handled = True
+                        time.sleep(2)  # Wait for popup to close
+                        break
+                    except:
+                        continue
+
+                if not popup_handled:
+                    logging.info("ℹ️ No cookie popup found or already handled")
+
+            except Exception as e:
+                logging.warning(f"⚠️ Error handling cookie popup: {str(e)}")
+
+            # Also try pressing ESC key to close any modal
+            try:
+                from selenium.webdriver.common.keys import Keys
+                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                logging.info("⌨️ Pressed ESC to close any modal")
+                time.sleep(2)
+            except:
+                pass
+
+            logging.info("🔍 Proceeding to search for mining cost element...")
+            # END NEW BLOCK
+
             # Extract mining cost value using CCAF XPath
             try:
                 # ADD THIS BLOCK - Enhanced element finding with debug
@@ -482,10 +533,33 @@ class HybridBTCCollector:
                     EC.presence_of_element_located((By.XPATH, xpath))
                 )
                 logging.info("✅ Mining cost element found!")
-                # END BLOCK
 
-                mining_cost_text = mining_cost_element.text.strip()
-                logging.info(f"📊 Raw CCAF mining cost text: '{mining_cost_text}'")
+                # NEW BLOCK - Wait for content to populate
+                logging.info("⏳ Waiting for content to populate...")
+
+                # Try multiple times to get non-empty content
+                for attempt in range(10):  # Try for up to 30 seconds (10 * 3 seconds)
+                    mining_cost_text = mining_cost_element.text.strip()
+                    logging.info(f"📊 Attempt {attempt + 1}: Raw text = '{mining_cost_text}'")
+
+                    if mining_cost_text:  # If we got content, break
+                        logging.info(f"✅ Content populated after {attempt + 1} attempts!")
+                        break
+
+                    time.sleep(3)  # Wait 3 seconds before next attempt
+
+                    # Refresh element reference in case DOM updated
+                    try:
+                        mining_cost_element = driver.find_element(By.XPATH, xpath)
+                    except:
+                        pass
+                else:
+                    # If we exhausted all attempts without getting content
+                    logging.warning("⚠️ Content never populated after 30 seconds")
+                    return {'mining_cost': 'N/A', 'data_date': 'CCAF Data', 'error': 'Content not loaded'}
+                # END NEW BLOCK
+
+                logging.info(f"📊 Final CCAF mining cost text: '{mining_cost_text}'")
 
                 # Parse the value - remove commas, dollar signs, etc.
                 clean_text = mining_cost_text.replace(',', '').replace('$', '').replace(' ', '')
