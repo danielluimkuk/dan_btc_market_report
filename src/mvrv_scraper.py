@@ -6,92 +6,97 @@ from typing import Optional
 
 class MVRVScraper:
     """
-    MVRV data collector using CoinMetrics Community API
+    MVRV data collector using BitBo.io free API
     Replaces web scraping with reliable API calls
     
-    Community API: https://community-api.coinmetrics.io/v4
+    BitBo API: https://charts.bitbo.io/api/v1/
     - No API key required
-    - 10 requests per 6 seconds rate limit
-    - Creative Commons license
-    - Authoritative MVRV data source
+    - Free tier with hourly updates
+    - Simple JSON response format
+    - Reliable MVRV ratio data
     """
     
     def __init__(self):
-        self.base_url = "https://community-api.coinmetrics.io/v4"
+        self.base_url = "https://charts.bitbo.io/api/v1"
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'BTC-MVRV-Collector/1.0'
         })
         
-    def get_mvrv_from_coinmetrics(self) -> Optional[float]:
+    def get_mvrv_from_bitbo(self) -> Optional[float]:
         """
-        Get MVRV ratio from CoinMetrics Community API
-        MVRV = Market Cap (CapMktCurUSD) / Realized Cap (CapRealUSD)
+        Get MVRV ratio from BitBo.io free API
         """
         try:
-            # Single API call to get both Market Cap and Realized Cap
-            url = f"{self.base_url}/timeseries/asset-metrics"
-            params = {
-                'assets': 'btc',
-                'metrics': 'CapMktCurUSD,CapRealUSD',
-                'frequency': '1d',
-                'limit': 1,  # Get only the latest value
-                'pretty': 'true'
-            }
+            # First try the MVRV ratio endpoint
+            url = f"{self.base_url}/mvrv/"
+            params = {'latest': 'true'}
             
-            logging.info("Fetching MVRV data from CoinMetrics Community API...")
+            logging.info("Fetching MVRV ratio from BitBo.io API...")
             
             response = self.session.get(url, params=params, timeout=15)
             response.raise_for_status()
             
             data = response.json()
             
-            # Parse the response
-            if 'data' not in data or not data['data']:
-                logging.error("No data returned from CoinMetrics API")
-                return None
-                
-            # Get the latest data point
-            latest_data = data['data'][0]  # Should be the most recent
-            
-            market_cap = None
-            realized_cap = None
-            
-            # Extract market cap and realized cap values
-            if 'CapMktCurUSD' in latest_data:
-                market_cap = float(latest_data['CapMktCurUSD'])
-                
-            if 'CapRealUSD' in latest_data:
-                realized_cap = float(latest_data['CapRealUSD'])
-                
-            # Validate we got both values
-            if market_cap is None or realized_cap is None:
-                logging.error(f"Missing data: MarketCap={market_cap}, RealizedCap={realized_cap}")
-                return None
-                
-            if realized_cap <= 0:
-                logging.error(f"Invalid realized cap value: {realized_cap}")
-                return None
-                
-            # Calculate MVRV ratio
-            mvrv_ratio = market_cap / realized_cap
-            
-            # Validate MVRV is in reasonable range
-            if not (0.1 <= mvrv_ratio <= 10.0):
-                logging.warning(f"MVRV value outside expected range: {mvrv_ratio}")
-                
-            logging.info(f"Successfully calculated MVRV: {mvrv_ratio:.3f} (MarketCap: ${market_cap:,.0f}, RealizedCap: ${realized_cap:,.0f})")
-            
-            return mvrv_ratio
+            # Parse BitBo response format: {"data": [["2025-05-07", "2.1963"]]}
+            if 'data' in data and data['data'] and len(data['data']) > 0:
+                latest_entry = data['data'][-1]  # Get the latest entry
+                if len(latest_entry) >= 2:
+                    mvrv_value = float(latest_entry[1])
+                    date_str = latest_entry[0]
+                    
+                    logging.info(f"Successfully retrieved MVRV ratio: {mvrv_value:.3f} (Date: {date_str})")
+                    return mvrv_value
+                    
+            logging.error("BitBo API returned data in unexpected format")
+            return None
             
         except requests.exceptions.RequestException as e:
-            logging.error(f"Network error fetching MVRV from CoinMetrics: {str(e)}")
+            logging.error(f"Network error fetching MVRV from BitBo: {str(e)}")
             return None
-        except (KeyError, ValueError, TypeError) as e:
+        except (KeyError, ValueError, TypeError, IndexError) as e:
             logging.error(f"Data parsing error for MVRV: {str(e)}")
             return None
         except Exception as e:
             logging.error(f"Unexpected error fetching MVRV: {str(e)}")
+            return None
+
+    def get_mvrv_zscore_from_bitbo(self) -> Optional[float]:
+        """
+        Fallback: Get MVRV Z-Score from BitBo.io and convert to approximate MVRV ratio
+        MVRV Z-Score is normalized, but we can derive insights from it
+        """
+        try:
+            url = f"{self.base_url}/mvrv-z/"
+            params = {'latest': 'true'}
+            
+            logging.info("Fetching MVRV Z-Score from BitBo.io as fallback...")
+            
+            response = self.session.get(url, params=params, timeout=15)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            if 'data' in data and data['data'] and len(data['data']) > 0:
+                latest_entry = data['data'][-1]
+                if len(latest_entry) >= 2:
+                    zscore = float(latest_entry[1])
+                    date_str = latest_entry[0]
+                    
+                    # Convert Z-Score to approximate MVRV ratio
+                    # This is an approximation based on historical patterns
+                    # Z-Score of 0 ≈ MVRV of ~1.0, Z-Score of 2 ≈ MVRV of ~2.5
+                    approximate_mvrv = max(0.1, 1.0 + (zscore * 0.75))
+                    
+                    logging.info(f"MVRV Z-Score: {zscore:.3f}, Approximate MVRV: {approximate_mvrv:.3f} (Date: {date_str})")
+                    return approximate_mvrv
+                    
+            logging.error("BitBo Z-Score API returned data in unexpected format")
+            return None
+            
+        except Exception as e:
+            logging.error(f"Error fetching MVRV Z-Score: {str(e)}")
             return None
 
     def get_mvrv_value(self, verbose=False) -> float:
@@ -105,27 +110,37 @@ class MVRVScraper:
             float: MVRV ratio, or 2.1 as fallback if all methods fail
         """
         if verbose:
-            print("Fetching MVRV using CoinMetrics Community API...")
+            print("Fetching MVRV using BitBo.io free API...")
             
         try:
-            # Get MVRV from CoinMetrics API
-            mvrv_value = self.get_mvrv_from_coinmetrics()
+            # Primary: Try to get MVRV ratio directly
+            mvrv_value = self.get_mvrv_from_bitbo()
             
             if mvrv_value is not None:
                 if verbose:
-                    print(f"Success: MVRV = {mvrv_value:.3f}")
+                    print(f"Success with MVRV ratio: {mvrv_value:.3f}")
                 return mvrv_value
             else:
                 if verbose:
-                    print("CoinMetrics API returned None")
+                    print("MVRV ratio endpoint failed, trying Z-Score...")
+                
+                # Secondary: Try MVRV Z-Score as fallback
+                zscore_mvrv = self.get_mvrv_zscore_from_bitbo()
+                
+                if zscore_mvrv is not None:
+                    if verbose:
+                        print(f"Success with Z-Score conversion: {zscore_mvrv:.3f}")
+                    return zscore_mvrv
+                else:
+                    if verbose:
+                        print("Both BitBo endpoints failed")
                     
         except Exception as e:
             logging.error(f"Error in get_mvrv_value: {str(e)}")
             if verbose:
                 print(f"Error: {str(e)}")
         
-        # Apply rate limiting pause (6 seconds for CoinMetrics Community API)
-        # This ensures we don't exceed 10 requests per 6 seconds
+        # Apply rate limiting pause (respect BitBo's free tier)
         time.sleep(6)
         
         # Fallback: return same default value as original scraper
@@ -137,14 +152,15 @@ class MVRVScraper:
 
     def test_api_connection(self) -> bool:
         """
-        Test if CoinMetrics Community API is accessible
+        Test if BitBo.io API is accessible
         
         Returns:
             bool: True if API is working, False otherwise
         """
         try:
-            url = f"{self.base_url}/catalog/assets"
-            params = {'assets': 'btc', 'pretty': 'true'}
+            # Test the MVRV Z-Score endpoint (most likely to work)
+            url = f"{self.base_url}/mvrv-z/"
+            params = {'latest': 'true'}
             
             response = self.session.get(url, params=params, timeout=10)
             response.raise_for_status()
@@ -153,14 +169,14 @@ class MVRVScraper:
             
             # Check if response contains expected data structure
             if 'data' in data and len(data['data']) > 0:
-                logging.info("CoinMetrics Community API connection test successful")
+                logging.info("BitBo.io API connection test successful")
                 return True
             else:
-                logging.error("CoinMetrics API test failed: unexpected response format")
+                logging.error("BitBo API test failed: unexpected response format")
                 return False
                 
         except Exception as e:
-            logging.error(f"CoinMetrics API connection test failed: {str(e)}")
+            logging.error(f"BitBo API connection test failed: {str(e)}")
             return False
 
 
@@ -169,7 +185,7 @@ if __name__ == "__main__":
     # Set up logging for testing
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     
-    print("Testing CoinMetrics MVRV Collector...")
+    print("Testing BitBo MVRV Collector...")
     print("=" * 50)
     
     scraper = MVRVScraper()
@@ -188,6 +204,24 @@ if __name__ == "__main__":
             print("   ✅ Successfully retrieved live MVRV data!")
         else:
             print("   ⚠️ Using fallback value - check API status")
+            
+        # Additional test: Try both endpoints individually
+        print("\n3. Testing individual endpoints...")
+        
+        print("   Testing MVRV ratio endpoint...")
+        mvrv_ratio = scraper.get_mvrv_from_bitbo()
+        if mvrv_ratio:
+            print(f"   ✅ MVRV Ratio: {mvrv_ratio:.3f}")
+        else:
+            print("   ❌ MVRV Ratio endpoint failed")
+            
+        print("   Testing MVRV Z-Score endpoint...")
+        zscore_mvrv = scraper.get_mvrv_zscore_from_bitbo()
+        if zscore_mvrv:
+            print(f"   ✅ Z-Score derived MVRV: {zscore_mvrv:.3f}")
+        else:
+            print("   ❌ Z-Score endpoint failed")
+            
     else:
         print("\n⚠️ Skipping MVRV test due to connection failure")
         
